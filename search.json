@@ -1,7 +1,17 @@
 [
 
 {
-"category": "triatlon",
+"category": "IoT",
+"title": "MQTT: The Protocol Designed for a World Where Things Fail",
+"description": "Imagine thousands of sensors distributed across a factory, a fleet of deliver...",
+"url": "/blog/mqtt.html",
+"image": "/assets/images/articles/mqtt-pubsub.svg",
+"author": "Istvan Dobrentei"
+}
+,
+
+{
+"category": "Hobbies",
 "title": "Triathlon 2023",
 "description": "After the COVID period, a new swimming pool was built in my city. Shortly aft...",
 "url": "/blog/triatlon-2023.html",
@@ -11,7 +21,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "Isaszeg running 2015",
 "description": "As I had planned the year before, I returned in April 2015 to run again aroun...",
 "url": "/blog/isaszeg-running-2015.html",
@@ -21,7 +31,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "Isaszeg running 2014",
 "description": "In 2013, I had a spontaneous idea: to go for a relaxing run in the nearby for...",
 "url": "/blog/isaszeg-running-2014.html",
@@ -31,7 +41,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "Vivicitta charity running",
 "description": "Taking part in the 29th Telekom Vivicittá Budapest Half Marathon was a unique...",
 "url": "/blog/vivicitta-charity-running.html",
@@ -41,7 +51,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "Ultrabalaton 2013",
 "description": "The team had been forming since December 2012, and finally, the big day arriv...",
 "url": "/blog/ultrabalaton-2013.html",
@@ -51,7 +61,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "My first marathon running",
 "description": "I ran the first marathon of my life on October 7th, 2012, in Budapest. My goa...",
 "url": "/blog/my-first-marathon-running.html",
@@ -61,7 +71,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "8. EON Délibáb running",
 "description": "The word Délibáb is Hungarian for a natural optical phenomenon — a mirage oft...",
 "url": "/blog/8-eon-delibab-running.html",
@@ -71,7 +81,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "The way of knowledge",
 "description": "On November 7, 2010, I had the honor of participating in The Way of Knowledge...",
 "url": "/blog/the-way-of-knowledge.html",
@@ -81,7 +91,7 @@
 ,
 
 {
-"category": "futás",
+"category": "Hobbies",
 "title": "Running for a greater cause",
 "description": "Back on August 14, 2010, at 9:00 AM, I joined one of my running pals, Csaba L...",
 "url": "/blog/running-for-a-greater-cause-together.html",
@@ -91,7 +101,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "My first run to Kékes",
 "description": "Kékes is the highest mountain in Hungary, standing at 1,014 meters above sea ...",
 "url": "/blog/my-first-run-to-kekes.html",
@@ -101,7 +111,7 @@
 ,
 
 {
-"category": "running",
+"category": "Hobbies",
 "title": "My first trail running",
 "description": "The story began in winter, when I came across a post on a community portal ab...",
 "url": "/blog/my-first-trail-running.html",
