@@ -1,10 +1,252 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.2">Jekyll</generator><link href="https://www.en.dobrenteiistvan.hu/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.en.dobrenteiistvan.hu/" rel="alternate" type="text/html" /><updated>2026-07-26T17:03:22+00:00</updated><id>https://www.en.dobrenteiistvan.hu/feed.xml</id><title type="html">Döbrentei István</title><subtitle>Döbrentei István oldala</subtitle><entry><title type="html">MQTT: The Protocol Designed for a World Where Things Fail</title><link href="https://www.en.dobrenteiistvan.hu/blog/mqtt.html" rel="alternate" type="text/html" title="MQTT: The Protocol Designed for a World Where Things Fail" /><published>2026-07-26T00:00:00+00:00</published><updated>2026-07-26T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/mqtt</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/mqtt.html"><![CDATA[<p>Imagine thousands of sensors distributed across a factory, a fleet of delivery drones, or millions of smart meters in different locations. How can these devices communicate reliably when networks are slow, unreliable, and expensive? MQTT (Message Queuing Telemetry Transport) was created to solve exactly this problem.</p>
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.2">Jekyll</generator><link href="https://www.en.dobrenteiistvan.hu/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.en.dobrenteiistvan.hu/" rel="alternate" type="text/html" /><updated>2026-08-01T17:42:37+00:00</updated><id>https://www.en.dobrenteiistvan.hu/feed.xml</id><title type="html">Döbrentei István</title><subtitle>Döbrentei István oldala</subtitle><entry><title type="html">Production Agent Architecture: The Agentic Loop (Part 1)</title><link href="https://www.en.dobrenteiistvan.hu/blog/agentic-loop.html" rel="alternate" type="text/html" title="Production Agent Architecture: The Agentic Loop (Part 1)" /><published>2026-08-01T00:00:00+00:00</published><updated>2026-08-01T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/agentic-loop</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/agentic-loop.html"><![CDATA[<h1 id="production-agent-architecture-the-agentic-loop-part-1">Production Agent Architecture: The Agentic Loop (Part 1)</h1>
+
+<p><em>Lessons learned while preparing for the Claude Architect Certification</em></p>
+
+<h2 id="what-is-an-agentic-loop">What is an agentic loop?</h2>
+
+<p>When people hear the word “agent,” they often imagine an AI that can think and solve problems on its own. But many apps that call themselves “AI agents” are really just one prompt and one response. Let’s look at an example.</p>
+
+<p>Suppose we want to build a customer support assistant. It should answer questions about orders.</p>
+
+<p>A user asks:</p>
+
+<blockquote>
+  <p>“My package hasn’t arrived yet. Can you check what’s happening?”</p>
+</blockquote>
+
+<p>Our first version is simple. The app sends the user’s message to the model, together with a system prompt like this:</p>
+
+<blockquote>
+  <p>You are a helpful customer support assistant. Answer the user’s questions.</p>
+</blockquote>
+
+<p>The model replies:</p>
+
+<blockquote>
+  <p>“I’m sorry your package hasn’t arrived. Please contact our support team.”</p>
+</blockquote>
+
+<p>Technically, this works. The model wrote a fluent, polite answer. The user got a reply. But did it actually solve the problem? Not really.</p>
+
+<p>The model has no way to check the order status. It cannot contact the shipping company. It cannot find out if the package was delivered, delayed, or lost.</p>
+
+<p>It cannot even ask the user for the missing order number. Most importantly, it cannot decide what information it needs before it answers. It just writes text from what it already knows.</p>
+
+<p>This is the limit of a single model call. The model can only reason over the context you give it, no matter how capable it gets. If it needs more information, or needs to talk to another system, it gets stuck.</p>
+
+<p>This is exactly where an agentic loop becomes useful.</p>
+
+<p>Instead of producing one response, the app lets the model work in repeated steps. On each step, the model can:</p>
+
+<ul>
+  <li>look at the current situation</li>
+  <li>decide what information is missing</li>
+  <li>call a tool to get that information</li>
+  <li>check the result</li>
+  <li>and continue until the task is done</li>
+</ul>
+
+<p>We call this repeating cycle an <strong>agentic loop</strong>.</p>
+
+<p>The loop doesn’t make the model smarter. It gives the app a clear, structured process. The model gathers information, makes decisions, and reacts to new information, one step at a time, until the task is complete.</p>
+
+<h2 id="a-pseudocode-example">A pseudocode example</h2>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>messages = [user_message]
+
+loop:
+    response = call_model(messages, tools)
+
+    if response.stop_reason == "end_turn":
+        return response.text
+
+    if response.stop_reason == "tool_use":
+        result = run_tool(response.tool_call)
+
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({"role": "user", "content": [tool_result(response.tool_call.id, result)]})
+        continue
+
+    raise UnhandledStopReason(response.stop_reason)
+</code></pre></div></div>
+
+<p>This pseudocode is close to the real thing. It’s not a simplified version made just for the article.</p>
+
+<p>Here is <code class="language-plaintext highlighter-rouge">run_agentic_loop()</code> from the example project. It uses one tool, <code class="language-plaintext highlighter-rouge">get_weather</code>, instead of order lookups. The logic stays the same:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">run_agentic_loop</span><span class="p">(</span><span class="n">user_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">max_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_ITERATIONS</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">messages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[{</span><span class="s">"role"</span><span class="p">:</span> <span class="s">"user"</span><span class="p">,</span> <span class="s">"content"</span><span class="p">:</span> <span class="n">user_message</span><span class="p">}]</span>
+
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iterations</span><span class="p">):</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">call_model</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="p">.</span><span class="n">stop_reason</span> <span class="o">==</span> <span class="s">"end_turn"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">extract_final_text</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="p">.</span><span class="n">stop_reason</span> <span class="o">!=</span> <span class="s">"tool_use"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="nb">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s">"Unhandled stop_reason: </span><span class="si">{</span><span class="n">response</span><span class="p">.</span><span class="n">stop_reason</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+
+        <span class="n">tool_results</span> <span class="o">=</span> <span class="n">run_requested_tools</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="n">append_tool_turn</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">response</span><span class="p">,</span> <span class="n">tool_results</span><span class="p">)</span>
+
+    <span class="k">raise</span> <span class="nb">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s">"Exceeded max_iterations (</span><span class="si">{</span><span class="n">max_iterations</span><span class="si">}</span><span class="s">) without end_turn"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>These four branches always run in the same order. <code class="language-plaintext highlighter-rouge">stop_reason</code> decides what happens next — nothing else does.</p>
+
+<p><code class="language-plaintext highlighter-rouge">call_model</code>, <code class="language-plaintext highlighter-rouge">run_requested_tools</code>, and <code class="language-plaintext highlighter-rouge">append_tool_turn</code> each do one small job. You can find the full file on <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.1%20Agentic-loops/agentic_loop_minimal.py">GitHub</a>.</p>
+
+<h2 id="model-driven-decisions-not-a-fixed-pipeline">Model-driven decisions, not a fixed pipeline</h2>
+
+<p>There’s one more distinction worth making explicit: nothing in this loop forces the model to call a tool. On every single call, the model looks at the conversation and decides for itself whether it needs <code class="language-plaintext highlighter-rouge">get_weather</code> at all.</p>
+
+<p>Ask the loop “What’s the weather in Budapest?” and it calls the tool, because it needs to. Ask it “What’s 2 + 2?” and it answers directly — <code class="language-plaintext highlighter-rouge">stop_reason</code> comes back <code class="language-plaintext highlighter-rouge">end_turn</code> on the very first call, with no <code class="language-plaintext highlighter-rouge">tool_use</code> block at all. Same loop, same tool available, different question, different path through the code.</p>
+
+<p>Compare that with a hardcoded pipeline: a fixed sequence like “always call <code class="language-plaintext highlighter-rouge">get_weather</code>, then always format the result.” That kind of pipeline doesn’t reason about whether the step is needed — it just runs it, every time, regardless of what was actually asked. The example project’s <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.1%20Agentic-loops/agentic_loop_minimal.py"><code class="language-plaintext highlighter-rouge">run_hardcoded_pipeline()</code></a> does exactly that, so you can see the difference side by side.</p>
+
+<p>This is what “model-driven decision-making” means in practice. The loop’s code doesn’t encode a sequence of steps. It encodes a rule: call the model, see what it wants, do that, repeat. What actually happens on any given run is up to the model, not the control flow.</p>
+
+<h2 id="critical-design-decisions">Critical design decisions</h2>
+
+<p>Building the loop itself is usually not the hard part. In a real project, nobody asks an architect “what is an agentic loop?” They ask for a loop that works reliably in production.</p>
+
+<p>The hard part is different. You need to decide when the loop should keep going, when it should stop, and how it should recover when something breaks. At what point should the agent stop acting on its own and hand the task to a human?</p>
+
+<p>A well-designed agentic system needs clear rules for:</p>
+
+<ul>
+  <li><strong>Termination</strong>: How does the agent know it’s done? This is the point the exam checks most closely. <code class="language-plaintext highlighter-rouge">stop_reason</code> is the only signal you should trust — not the text content, not a guess. You can still use <code class="language-plaintext highlighter-rouge">max_iterations</code> as a safety net, but only as a last resort. It should never be the normal way to decide a conversation is over.</li>
+  <li><strong>Retries</strong>: Which failures are worth trying again?</li>
+  <li><strong>Error handling</strong>: How does the workflow recover safely?</li>
+  <li><strong>State management</strong>: What information should stay between steps, and what should get dropped?</li>
+  <li><strong>Context management</strong>: What information does the model actually need to carry forward?</li>
+  <li><strong>Human in the loop</strong>: When should a person take over?</li>
+</ul>
+
+<h2 id="consequences">Consequences</h2>
+
+<p>Skipping these decisions doesn’t make the loop simpler. It just moves the problem somewhere less visible.</p>
+
+<ul>
+  <li><strong>No termination rule</strong> -&gt; the loop stops too early, or never stops at all.</li>
+  <li><strong>No retry strategy</strong> -&gt; one small, temporary failure (a network blip, a rate limit) kills the whole task. A second try might have worked.</li>
+  <li><strong>No state or context management</strong> -&gt; the message history keeps growing until you hit the context limit. Or the model loses track of the original goal.</li>
+  <li><strong>No human-in-the-loop rule</strong> -&gt; the agent keeps acting on its own, even in cases where a person should sign off first, like a payment or another action you can’t undo.</li>
+</ul>
+
+<p>This is the real gap between a demo that works on a good day and a system an architect is willing to stand behind. None of these ideas are complicated. You just have to decide them on purpose, instead of by accident.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="AI" /><category term="Claude" /><summary type="html"><![CDATA[Why a single model call isn't a real AI agent - what an agentic loop actually is, a working Python example, and the design decisions around termination, retries, error handling, and human-in-the-loop that decide if an agent survives production.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/agentic-loop.svg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/agentic-loop.svg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Production Agent Architecture: The Coordinator Subagent (Part 2)</title><link href="https://www.en.dobrenteiistvan.hu/blog/coordinator-subagent.html" rel="alternate" type="text/html" title="Production Agent Architecture: The Coordinator Subagent (Part 2)" /><published>2026-08-01T00:00:00+00:00</published><updated>2026-08-01T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/coordinator-subagent</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/coordinator-subagent.html"><![CDATA[<h1 id="production-agent-architecture-the-coordinator-subagent-part-2">Production Agent Architecture: The Coordinator Subagent (Part 2)</h1>
+
+<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
+
+<h2 id="from-one-agent-to-many">From one agent to many</h2>
+
+<p>In Part 1, our customer support agent grew a second tool without much effort. Once <code class="language-plaintext highlighter-rouge">get_order_status</code> existed, adding <code class="language-plaintext highlighter-rouge">get_return_policy</code> was just one more entry in the tools list. The loop already knew how to call any tool and use the result. Nothing about the control flow had to change.</p>
+
+<p>Now the product team wants more. Users also want to know if they could still get a better price on what they bought. That means a new tool, <code class="language-plaintext highlighter-rouge">get_price_history</code>. It also means a new policy to explain, plus new edge cases. For example: what if the order is too old for price data to exist?</p>
+
+<p>Nothing stops you from adding this as a third tool on the same agent. But a few problems start to show up:</p>
+
+<ul>
+  <li>The system prompt now covers three topics at once: shipping, returns, and pricing. The model has to keep all of this in mind on every turn, even for a question about just one topic.</li>
+  <li>Tool descriptions from different topics sit in the same list and start to compete for attention. This can make the model’s tool choice less accurate.</li>
+  <li>A bug in the pricing logic can now break a conversation that was only about shipping. Everything shares the same context and the same loop.</li>
+  <li>The problem doesn’t stop at three tools. Every new feature adds the same kind of strain again, and worse.</li>
+</ul>
+
+<p>A bigger prompt doesn’t fix this. The real fix is structural. You split the single agent into a <strong>coordinator</strong> and a set of <strong>subagents</strong>. The coordinator only delegates work and combines the answers. Each subagent is its own agentic loop from Part 1, focused on one topic, with its own tools and its own separate context.</p>
+
+<p>This is the coordinator-subagent pattern. It isn’t a new kind of loop. It’s the same loop from Part 1, used one level deeper.</p>
+
+<h2 id="a-pseudocode-example">A pseudocode example</h2>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>coordinator_loop(user_message):
+    messages = [user_message]
+
+    loop:
+        response = call_model(messages, tools=SUBAGENT_TOOLS)
+
+        if response.stop_reason == "end_turn":
+            return response.text
+
+        if response.stop_reason == "tool_use":
+            tool_results = []
+            for tool_call in response.tool_calls:
+                result = run_agentic_loop(tool_call.subtask)
+                tool_results.append(tool_result(tool_call.id, result))
+
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({"role": "user", "content": tool_results})
+            continue
+
+        raise UnhandledStopReason(response.stop_reason)
+</code></pre></div></div>
+
+<p>This looks a lot like Part 1’s pseudocode. The only real change is what a “tool” does.</p>
+
+<p>In Part 1, a tool call reached into a fake backend and returned a small dict. Here, each tool call reaches into <code class="language-plaintext highlighter-rouge">run_agentic_loop()</code> — the same function from Part 1. It returns whatever that inner loop produces once it reaches its own <code class="language-plaintext highlighter-rouge">end_turn</code>.</p>
+
+<p>The coordinator doesn’t know, and doesn’t need to know, that its “tool” is actually a full conversation with the model. From the coordinator’s side, it’s just a function: send a question, get an answer back.</p>
+
+<p>One more detail is worth pointing out. The loop collects every <code class="language-plaintext highlighter-rouge">tool_use</code> block from a single response before it calls the model again. So the coordinator can ask for several subagents in the same turn. What you do with that — run them one after another, or run them at the same time — is exactly the “parallel vs. sequential” question below.</p>
+
+<p>The example project (<a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.2%20Coordinator-subagents/coordinator_subagent_minimal.py"><code class="language-plaintext highlighter-rouge">coordinator_subagent_minimal.py</code></a>) shows this in real code. <code class="language-plaintext highlighter-rouge">run_agentic_loop()</code> is written once. The coordinator, the order subagent, and the pricing subagent all call through it. Only the system prompt, the tools, and the tool implementations change between roles.</p>
+
+<h2 id="critical-design-decisions">Critical design decisions</h2>
+
+<p>In Part 1, the hard question was: when is a single loop done? In Part 2, the hard question is different: how many loops do you need, and how do they talk to each other?</p>
+
+<ul>
+  <li><strong>Task decomposition</strong>: How does the coordinator decide what to delegate, and to whom? In the example project, this is entirely up to the model’s judgment, based on the tool descriptions (<code class="language-plaintext highlighter-rouge">consult_order_subagent</code> vs. <code class="language-plaintext highlighter-rouge">consult_pricing_subagent</code>). In a real system, a vague tool description can easily make the coordinator delegate too much or too little — or decompose the topic too narrowly to begin with. More on that below.</li>
+  <li><strong>Context isolation</strong>: What does each subagent actually see? This is the key point the code shows: every subagent starts with a fresh, narrow message history. It only gets the question it was given, not the coordinator’s full conversation. That’s why the pricing subagent never sees order data it doesn’t need: smaller context, narrower tool access, less room for mistakes.</li>
+  <li><strong>Communication protocol</strong>: What shape does a delegation and its answer take? The example project keeps it simple: a plain text question in, a plain text answer out. Bigger systems often need structured data instead. Then the coordinator can react to a partial failure directly, instead of reading it out of a sentence.</li>
+  <li><strong>Parallel vs. sequential execution</strong>: Can subagents run at the same time? A single response can hold more than one <code class="language-plaintext highlighter-rouge">tool_use</code> block, so independent subagents could in principle start together, before either one finishes. But if one subagent needs another one’s result first, they still have to run in order.</li>
+  <li><strong>Error propagation</strong>: What happens if a subagent fails? It might run out of steps, hit a tool error, or get a question it can’t answer. Does the coordinator try again with a different question? Continue with a partial answer? Tell the user something went wrong? If you don’t decide this in advance, the coordinator can end up giving a confident answer built on missing information.</li>
+  <li><strong>Aggregation and synthesis</strong>: How does the coordinator turn several subagent answers into one clear response? This takes real reasoning, not just formatting. If two subagents give answers that don’t fully agree, something has to sort that out — in this case, the coordinator’s own model call.</li>
+  <li><strong>Depth and cost control</strong>: What stops a subagent from becoming a coordinator itself, and starting its own subagents again and again? By default, nothing does. You need a clear depth limit, a rule that says “this subagent can’t delegate further,” and a cost or token budget per branch. These are decisions the architect has to make on purpose.</li>
+</ul>
+
+<h2 id="when-two-subagents-arent-enough">When two subagents aren’t enough</h2>
+
+<p>The order and pricing example only has two subagents, and with two subagents decomposition can’t really go wrong — there’s nowhere else to send a question. The moment you add a third, a different kind of problem shows up. Not a bug in the code. A gap in the decomposition itself.</p>
+
+<p>The example project adds that third subagent: returns. Same shape as the other two — its own tool, its own isolated context, its own narrow job.</p>
+
+<p>Now ask the coordinator a question that touches all three topics: <em>“Where’s my order A1001, is it still a good price, and can I return it if I don’t like it?”</em></p>
+
+<p>If the coordinator’s system prompt and tool list were only ever built around order and pricing, the third part of that question just disappears. Nothing crashes. Nothing errors out. The coordinator confidently answers two-thirds of the question and never mentions the part it had no subagent for. From the user’s side, the missing return policy doesn’t look like a failure — it looks like it was never asked about.</p>
+
+<p>That’s the real risk of narrow decomposition: not that the coordinator makes a wrong call, but that its own tool list quietly becomes a ceiling on what it can ever cover. <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.2%20Coordinator-subagents/coordinator_subagent_minimal.py"><code class="language-plaintext highlighter-rouge">run_narrow_coordinator()</code></a> reproduces exactly this. Give it the three-topic question above and watch the third topic vanish from the answer.</p>
+
+<p>The fix isn’t to give the coordinator every subagent “just in case.” That just means synthesizing three answers for a question that only needed one. The real fix is two things done well: build a subagent set that actually spans the domain, and let the coordinator choose <em>dynamically</em> which of those subagents a given question needs — not a fixed subset, and not all of them by default.</p>
+
+<p><a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.2%20Coordinator-subagents/coordinator_subagent_minimal.py"><code class="language-plaintext highlighter-rouge">run_refining_coordinator()</code></a> shows both halves of that. It has all three subagents available, but its system prompt tells it to call only the ones a question actually touches. It also tells the model to check its own draft answer against the original question before finishing: if a part is still unaddressed, delegate again instead of stopping.</p>
+
+<p>That second instruction is what an <strong>iterative refinement loop</strong> really is. It isn’t a new mechanism bolted onto the architecture — it’s the same loop from Part 1, given a reason to use more than one round. The coordinator was always allowed to call a subagent, look at the result, and call another one before finishing. Telling it to check its own coverage just makes it actually do that, instead of stopping the first time it has <em>something</em> to say.</p>
+
+<p>One more thing worth keeping in mind as a system grows: each subagent should own a distinct, non-overlapping slice of the domain. Order status, pricing, and returns don’t overlap here, so there’s no risk of two subagents doing the same work twice. In a research-style system with more subagents and broader topics, that’s not automatic — partitioning the scope so subagents don’t duplicate each other’s work is its own design decision, the same way task decomposition is.</p>
+
+<h2 id="consequences">Consequences</h2>
+
+<p>Skipping these decisions doesn’t make the system simpler. It just hides the problems until they show up somewhere else.</p>
+
+<ul>
+  <li><strong>No decomposition rule</strong> -&gt; the coordinator delegates a simple question that never needed a subagent, wasting time and cost. Or it hands a subagent work it was never scoped to handle.</li>
+  <li><strong>No coverage check</strong> -&gt; the coordinator stops as soon as it has <em>something</em> to say, not once it has addressed everything the user asked. Parts of a multi-topic question silently disappear from the answer, and nothing signals that they were dropped.</li>
+  <li><strong>No context isolation</strong> -&gt; subagents start sharing context they shouldn’t. This defeats the whole point of splitting them apart. A bug in one topic can now affect an answer about a different topic, the same way it would in a single overloaded agent.</li>
+  <li><strong>No clear communication protocol</strong> -&gt; the coordinator has to guess, from plain text, whether a subagent actually answered the question. A response that sounds fine but says nothing useful can pass as a success.</li>
+  <li><strong>No sequencing rule</strong> -&gt; dependent subtasks run before the data they need is ready. Or independent subtasks run one after another for no reason, wasting time.</li>
+  <li><strong>No error propagation rule</strong> -&gt; a subagent can fail quietly, and the coordinator still gives a confident final answer. The user can’t tell the difference between a correct answer and a wrong one built on missing data.</li>
+  <li><strong>No aggregation rule</strong> -&gt; the “final answer” is just the subagent answers glued together, contradictions included. The user is left to sort it out.</li>
+  <li><strong>No depth or cost control</strong> -&gt; a subagent that keeps spawning more subagents multiplies the cost and the time at every level, with no limit. A bill or a timeout catches the problem before the architecture does.</li>
+</ul>
+
+<p>These decisions don’t replace the ones from Part 1. Every subagent is still its own loop, and it still needs its own rules for stopping and handling errors. Orchestration adds a second layer on top of that. It doesn’t remove the first one.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="AI" /><category term="Claude" /><summary type="html"><![CDATA[Why one agent loaded with too many tools starts to break down, and how splitting it into a coordinator and focused subagents fixes it - task decomposition, context isolation, parallel vs. sequential execution, and error propagation across a real agentic system.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/coordinator-subagent.svg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/coordinator-subagent.svg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">MQTT: The Protocol Designed for a World Where Things Fail</title><link href="https://www.en.dobrenteiistvan.hu/blog/mqtt.html" rel="alternate" type="text/html" title="MQTT: The Protocol Designed for a World Where Things Fail" /><published>2026-07-26T00:00:00+00:00</published><updated>2026-07-26T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/mqtt</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/mqtt.html"><![CDATA[<p>Imagine thousands of sensors distributed across a factory, a fleet of delivery drones, or millions of smart meters in different locations. How can these devices communicate reliably when networks are slow, unreliable, and expensive? MQTT (Message Queuing Telemetry Transport) was created to solve exactly this problem.</p>
 
 <h2 id="the-origin-story-of-mqtt">The origin story of MQTT</h2>
 
 <p>The story of MQTT begins in the late 1990s, before the term IoT (Internet of Things) became popular. At that time, engineers were already trying to connect remote machines, sensors, and industrial equipment, but the available communication methods were not well suited for these environments.</p>
 
-<p>Most people describe MQTT as a messaging protocol, but it was created because the physical world is unreliable. Instead of describing it feature by feature, I’ll uncover it through the questions it was designed to answer. Before that, it helps to understand the three roles involved in every MQTT system.</p>
+<p>Most people describe MQTT as a messaging protocol, but it was created because the physical world is unreliable. Instead of describing it feature by feature, I’ll explain it through the questions it was designed to answer. Before that, it helps to understand the three roles involved in every MQTT system.</p>
 
 <h3 id="the-publisher">The publisher</h3>
 
@@ -26,11 +268,11 @@
 
 <h3 id="what-do-clients-and-brokers-look-like-in-practice">What do clients and brokers look like in practice?</h3>
 
-<p>None of this is as abstract as it sounds. A “client” is just anything running MQTT client software: an ESP32 microcontroller with a few kilobytes of firmware, a Raspberry Pi running Home Assistant, a smartphone app checking today’s solar production, or a few lines embedded in an industrial PLC. A commercial smart plug running Tasmota is a client. Home Assistant itself is a client too; it just happens to be one that subscribes to hundreds of topics and publishes commands back to many of them at once.</p>
+<p>None of this is as abstract as it sounds. A “client” is just anything running MQTT client software. It can be an ESP32 microcontroller with a few kilobytes of firmware, a Raspberry Pi running Home Assistant, a smartphone app checking today’s solar production, or a few lines of code inside an industrial PLC. A commercial smart plug running Tasmota is a client. Home Assistant is a client too. It just happens to be one that subscribes to hundreds of topics and publishes commands back to many of them at once.</p>
 
-<p>A “broker” is just as unglamorous: server software, usually a single process. <strong>Eclipse Mosquitto</strong> is the one most home labs reach for — lightweight enough to run on a Raspberry Pi, in a Docker container, or as a Home Assistant add-on, and largely forget about; it comfortably handles thousands of messages a second on hardware that costs less than the charger it’s monitoring. At the other end of the scale, <strong>EMQX</strong> and <strong>HiveMQ</strong> are broker platforms built to run clustered across many servers, handling millions of simultaneously connected clients — the kind of infrastructure a nationwide smart meter rollout would need. Cloud providers also sell brokers as a managed service — <strong>AWS IoT Core</strong>, <strong>Azure IoT Hub</strong> — so a manufacturer never has to run one at all.</p>
+<p>A “broker” is just as simple: it’s server software, usually a single process. <strong>Eclipse Mosquitto</strong> is the one most home labs reach for. It’s light enough to run on a Raspberry Pi, in a Docker container, or as a Home Assistant add-on, and you can mostly forget about it once it’s running. It comfortably handles thousands of messages a second on hardware that costs less than the charger it’s monitoring. At the other end of the scale, <strong>EMQX</strong> and <strong>HiveMQ</strong> are broker platforms built to run clustered across many servers. They can handle millions of connected clients at once — the kind of infrastructure a nationwide smart meter rollout would need. Cloud providers also sell brokers as a managed service, like <strong>AWS IoT Core</strong> or <strong>Azure IoT Hub</strong>, so a manufacturer never has to run one at all.</p>
 
-<p>None of that changes the protocol underneath. A $3 microcontroller and a clustered enterprise broker are speaking exactly the same MQTT to each other. The roles are identical; only the scale differs.</p>
+<p>None of that changes the protocol underneath. A $3 microcontroller and a clustered enterprise broker are speaking exactly the same MQTT to each other. The roles are identical. Only the scale differs.</p>
 
 <h3 id="one-client-multiple-roles">One client, multiple roles</h3>
 
@@ -47,9 +289,9 @@
 
 <p>This simple architecture is one of the reasons MQTT scales so well. Publishers never need to know who receives their messages, and subscribers never need to know who produced them. The broker takes care of connecting the two.</p>
 
-<p>Looking a bit closer, MQTT implements the Pub/Sub architecture pattern. It is not something unique to MQTT; MQTT is simply one implementation of that pattern. The key idea behind this is <strong>decoupling</strong>. Publishers and subscribers do not know about each other. They only agree on a common “language” (topics or events), while a broker or message bus delivers the messages.</p>
+<p>MQTT actually implements a broader pattern called Publish/Subscribe (Pub/Sub). It is not something unique to MQTT. MQTT is simply one implementation of that pattern. The key idea behind it is <strong>decoupling</strong>. Publishers and subscribers do not know about each other. They only agree on a common “language” — topics or events — while a broker or message bus delivers the messages.</p>
 
-<p>MQTT’s Publish/Subscribe model is closely related to several other software patterns, like the Observer Pattern, common in object-oriented programming. An object (the subject) notifies all registered observers when its state changes. You’ll find it most often in GUI frameworks. You can find the same behaviour in Event-Driven Architecture — an event-driven communication pattern applied to the physical world. Instead of software services producing business events, devices produce events about the state of the real world. The architecture is the same: something happens, an event is published, and interested systems react.</p>
+<p>MQTT’s Publish/Subscribe model is closely related to other software patterns, like the Observer Pattern, common in object-oriented programming. An object (the subject) notifies all registered observers when its state changes. You’ll find it most often in GUI frameworks. You can find the same idea in Event-Driven Architecture, which applies the same pattern to the physical world. Instead of software services producing business events, devices produce events about the state of the real world. The architecture is the same: something happens, an event is published, and interested systems react.</p>
 
 <p>Networks fail. Power disappears. Cellular coverage comes and goes. Sensors reboot. Messages get lost. Yet industrial automation, smart cities, connected vehicles and energy systems still need to operate.</p>
 
@@ -81,7 +323,7 @@
 
 <h3 id="how-do-you-know-a-message-actually-arrived">How do you know a message actually arrived?</h3>
 
-<p>A sensor publishes a reading. Did the broker receive it? Did the subscriber? On a shaky mobile network, packets get dropped mid-transmission all the time. MQTT doesn’t leave this to chance — it lets you choose, per message, how hard the protocol should work to make sure it lands.</p>
+<p>A sensor publishes a reading. Did the broker receive it? Did the subscriber? On a shaky mobile network, packets get dropped mid-transmission all the time. MQTT doesn’t leave this to chance. It lets you choose, per message, how hard the protocol should work to make sure the message lands.</p>
 
 <p>At QoS 0, a message is sent once and forgotten — fire and forget. Fine for a reading that will be superseded a second later anyway.</p>
 
@@ -95,27 +337,27 @@
 
 <p>A client reconnects after being offline for ten minutes. What happened to it in that time?</p>
 
-<p>If it connected with a persistent session, the broker was holding onto anything sent to it at QoS 1 or QoS 2 while it was gone — those messages arrive the moment it comes back, in order. The client doesn’t need any special recovery logic; from its point of view, the outage just collapses into a slightly longer wait.</p>
+<p>If it connected with a persistent session, the broker was holding onto anything sent to it at QoS 1 or QoS 2 while it was gone. Those messages arrive the moment it comes back, in order. The client doesn’t need any special recovery logic. From its point of view, the outage just feels like a slightly longer wait.</p>
 
-<p>If it connected with a clean session instead, none of that history follows it. It starts fresh, subscribes again, and only sees what’s published from that point forward.</p>
+<p>If it connected with a clean session instead, none of that history follows it. It starts fresh, subscribes again, and only sees what gets published from that point forward.</p>
 
-<p>Neither choice is “correct” on its own — a factory alarm system wants the messages it missed; a live GPS tracker mostly doesn’t care what happened while it was disconnected, only where the vehicle is now. MQTT lets each client decide which kind of recovery it actually needs.</p>
+<p>Neither choice is “correct” on its own. A factory alarm system wants the messages it missed. A live GPS tracker mostly doesn’t care what happened while it was disconnected — it only cares where the vehicle is now. MQTT lets each client decide which kind of recovery it actually needs.</p>
 
 <h3 id="why-wasnt-http-enough">Why wasn’t HTTP enough?</h3>
 
 <p>HTTP is a request-response protocol: a client asks, a server answers. That model assumes the client knows who to ask, and that the server is reachable and listening right at that moment.</p>
 
-<p>Neither assumption holds up well for a sensor network. A pipeline sensor doesn’t know which of several dashboards, alarms, or logging systems might care about its reading — and it shouldn’t have to know. If it had to open a connection and send a request to each one individually, adding a new subscriber would mean reconfiguring every publisher in the system.</p>
+<p>Neither assumption holds up well for a sensor network. A pipeline sensor doesn’t know which of several dashboards, alarms, or logging systems might care about its reading, and it shouldn’t have to know. If it had to open a connection and send a request to each one individually, adding a new subscriber would mean reconfiguring every publisher in the system.</p>
 
-<p>HTTP also expects a server to be reachable on demand. Devices on a cellular or satellite link aren’t always reachable, and polling constantly to ask “did anything change?” burns bandwidth and battery for the vast majority of checks that come back with nothing new.</p>
+<p>HTTP also expects a server to be reachable on demand. Devices on a cellular or satellite link aren’t always reachable. Polling constantly to ask “did anything change?” burns bandwidth and battery, and most of those checks come back with nothing new anyway.</p>
 
-<p>MQTT flips the relationship. A device doesn’t ask anyone anything — it announces what it knows, and whoever’s listening gets notified. Adding a new subscriber means one more client connecting to the broker, not any change on the publisher’s side at all.</p>
+<p>MQTT flips the relationship. A device doesn’t ask anyone anything. It just announces what it knows, and whoever is listening gets notified. Adding a new subscriber means one more client connecting to the broker. Nothing has to change on the publisher’s side.</p>
 
 <h3 id="why-does-mqtt-still-matter-decades-later">Why does MQTT still matter, decades later?</h3>
 
-<p>MQTT was designed in 1999 for oil pipelines and satellite links — about as far from a smart home as you can get. And yet it’s the same protocol quietly running inside Home Assistant, inside industrial SCADA systems, inside the EV charger in someone’s garage.</p>
+<p>MQTT was designed in 1999 for oil pipelines and satellite links, about as far from a smart home as you can get. And yet it’s the same protocol quietly running inside Home Assistant, inside industrial SCADA systems, inside the EV charger in someone’s garage.</p>
 
-<p>That’s not nostalgia. The problem MQTT solves was never really about the technology of any particular decade — networks were unreliable in 1999 and they’re still unreliable now, just in new shapes: a Wi-Fi dropout instead of a satellite delay, a cheap microcontroller instead of a pipeline modem. The underlying pattern — decouple publishers from subscribers, let a broker absorb the unreliability, treat presence and disconnection as first-class events instead of edge cases — turned out to generalize to almost anything that produces data intermittently and needs that data to reach more than one place.</p>
+<p>That’s not nostalgia. The problem MQTT solves was never really about the technology of any particular decade. Networks were unreliable in 1999, and they’re still unreliable now, just in new shapes: a Wi-Fi dropout instead of a satellite delay, a cheap microcontroller instead of a pipeline modem. The underlying pattern is simple: decouple publishers from subscribers, let a broker absorb the unreliability, and treat presence and disconnection as first-class events instead of edge cases. That pattern turned out to fit almost anything that produces data on and off and needs that data to reach more than one place.</p>
 
 <p>That’s why a protocol old enough to predate the term “IoT” is still the obvious choice for a new EV charger deciding when to draw power from the sun instead of the grid.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="IoT" /><category term="MQTT" /><summary type="html"><![CDATA[Why MQTT, a protocol designed in 1999 for unreliable networks, still powers IoT today - publishers, subscribers, brokers, QoS levels, and why it handles disconnection better than HTTP.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/mqtt-pubsub.svg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/mqtt-pubsub.svg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Triathlon 2023</title><link href="https://www.en.dobrenteiistvan.hu/blog/triatlon-2023.html" rel="alternate" type="text/html" title="Triathlon 2023" /><published>2023-12-31T00:00:00+00:00</published><updated>2023-12-31T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/triatlon-2023</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/triatlon-2023.html"><![CDATA[<p>After the COVID period, a new swimming pool was built in my city. Shortly after its opening, I came across an advertisement for a swimming coach.
 I had wanted to learn how to swim properly for years, and I thought—this is a great opportunity.
@@ -196,16 +438,4 @@ One of the most unforgettable moments was when I found myself running alongside 
 
 <p>My heart rate was at its maximum, and I pushed myself to the edge. This wasn’t a race to chase a personal record — it was about survival.</p>
 
-<p>But I did it. I crossed the finish line and conquered the heat, the landscape, and my own limits.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[The word Délibáb is Hungarian for a natural optical phenomenon — a mirage often seen on the flatlands of the Hortobágy National Park. It’s created by a unique combination of sun, sky, and landscape. And there’s hardly a better metaphor for what it felt like to run in the 8th E.ON Délibáb race.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/hortobagy2011.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/hortobagy2011.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">The way of knowledge</title><link href="https://www.en.dobrenteiistvan.hu/blog/the-way-of-knowledge.html" rel="alternate" type="text/html" title="The way of knowledge" /><published>2010-11-09T00:00:00+00:00</published><updated>2010-11-09T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/the-way-of-knowledge</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/the-way-of-knowledge.html"><![CDATA[<p>On November 7, 2010, I had the honor of participating in The Way of Knowledge Half Marathon in Budapest — an inspiring road running event that combines the joy of running with the beauty of education and heritage.</p>
-
-<p>The race started and finished at Nagyvárad tér, in front of the high-rise building of Semmelweis University, and the route led us past some of Budapest’s most prestigious universities, colleges, and academies, crossing both sides of the majestic Danube River.</p>
-
-<p>Along the way, we passed iconic landmarks like the Hungarian Parliament Building and the magnificent Széchenyi Chain Bridge, making the run not only a physical challenge but also a breathtaking journey through history and culture.</p>
-
-<p>It was a great challenge and a memorable experience — thank you to the organizers and everyone involved. I’m truly grateful to have been a part of it. 🏃‍♂️📚🇭🇺</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[On November 7, 2010, I had the honor of participating in The Way of Knowledge Half Marathon in Budapest — an inspiring road running event that combines the joy of running with the beauty of education and heritage.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/tudas_utja_felmaraton.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/tudas_utja_felmaraton.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Running for a greater cause</title><link href="https://www.en.dobrenteiistvan.hu/blog/running-for-a-greater-cause-together.html" rel="alternate" type="text/html" title="Running for a greater cause" /><published>2010-08-15T00:00:00+00:00</published><updated>2010-08-15T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/running-for-a-greater-cause-together</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/running-for-a-greater-cause-together.html"><![CDATA[<p>Back on August 14, 2010, at 9:00 AM, I joined one of my running pals, Csaba Lajkó, on an extraordinary charity run. Csaba had set out to run from Székesfehérvár to Ónod — an incredible distance of around 230 km in just 3 days — to raise funds for people affected by devastating floods.</p>
-
-<p>I connected with him in Kistarcsa and ran by his side to Aszód, covering 23.6 km together.</p>
-
-<p>It was more than just a run. It was a journey filled with purpose, unity, and generosity. It was amazing to witness how many people came together to support those in need.</p>
-
-<p>Thank you, Csaba, for your inspiring initiative, and thank you to everyone who joined, supported, and donated. It was a privilege to be part of something truly meaningful. 🙏🏃‍♂️💙</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[Back on August 14, 2010, at 9:00 AM, I joined one of my running pals, Csaba Lajkó, on an extraordinary charity run. Csaba had set out to run from Székesfehérvár to Ónod — an incredible distance of around 230 km in just 3 days — to raise funds for people affected by devastating floods.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/futas_az_arvizkarosultakert.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/futas_az_arvizkarosultakert.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry></feed>
+<p>But I did it. I crossed the finish line and conquered the heat, the landscape, and my own limits.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[The word Délibáb is Hungarian for a natural optical phenomenon — a mirage often seen on the flatlands of the Hortobágy National Park. It’s created by a unique combination of sun, sky, and landscape. And there’s hardly a better metaphor for what it felt like to run in the 8th E.ON Délibáb race.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/hortobagy2011.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/hortobagy2011.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry></feed>

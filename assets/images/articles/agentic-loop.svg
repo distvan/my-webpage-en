@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="'Source Sans Pro', 'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef4fb"/>
+      <stop offset="100%" stop-color="#e4ecf7"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#96a8cc"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="600" fill="url(#bg)"/>
+
+  <!-- loop path: Model -> Tool Call -->
+  <path d="M500,190 C 410,250 330,280 275,338" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="360" y="270" text-anchor="middle" font-size="14" fill="#5a6b8c">tool_use</text>
+
+  <!-- loop path: Tool Call -> Result -->
+  <path d="M392,415 C 550,455 720,455 778,415" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="585" y="470" text-anchor="middle" font-size="14" fill="#5a6b8c">run tool</text>
+  <circle cx="585" cy="437" r="6" fill="rgb(112,195,148)"/>
+
+  <!-- loop path: Result -> Model -->
+  <path d="M895,338 C 840,260 750,215 702,190" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="840" y="270" text-anchor="middle" font-size="14" fill="#5a6b8c">next step</text>
+
+  <!-- exit path: Model -> Done -->
+  <path d="M732,120 C 850,120 900,120 975,120" stroke="#96a8cc" stroke-width="3" fill="none" stroke-dasharray="2 6" marker-end="url(#arrow)"/>
+  <text x="855" y="100" text-anchor="middle" font-size="14" fill="#5a6b8c">end_turn</text>
+
+  <!-- Model node -->
+  <g>
+    <rect x="470" y="50" width="260" height="140" rx="18" fill="rgb(124,142,222)"/>
+    <circle cx="555" cy="100" r="10" fill="#ffffff"/>
+    <circle cx="600" cy="90" r="10" fill="#ffffff"/>
+    <circle cx="645" cy="100" r="10" fill="#ffffff"/>
+    <line x1="555" y1="100" x2="600" y2="90" stroke="#ffffff" stroke-width="2"/>
+    <line x1="600" y1="90" x2="645" y2="100" stroke="#ffffff" stroke-width="2"/>
+    <line x1="555" y1="100" x2="600" y2="122" stroke="#ffffff" stroke-width="2"/>
+    <line x1="645" y1="100" x2="600" y2="122" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="600" cy="122" r="10" fill="#ffffff"/>
+    <text x="600" y="160" text-anchor="middle" font-size="22" fill="#ffffff" font-weight="600">Model</text>
+    <text x="600" y="182" text-anchor="middle" font-size="14" fill="#eaeaff">decides what's next</text>
+  </g>
+
+  <!-- Tool Call node -->
+  <g>
+    <rect x="150" y="340" width="240" height="140" rx="18" fill="rgb(113,178,222)"/>
+    <path d="M245 390 l14 -14 10 10 -14 14 z" fill="#ffffff" opacity="0.95"/>
+    <path d="M259 404 l16 16" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="238" cy="383" r="5" fill="#ffffff"/>
+    <text x="270" y="440" text-anchor="middle" font-size="22" fill="#ffffff" font-weight="600">Tool call</text>
+    <text x="270" y="462" text-anchor="middle" font-size="14" fill="#eaf2fb">e.g. get_weather</text>
+  </g>
+
+  <!-- Result node -->
+  <g>
+    <rect x="780" y="340" width="240" height="140" rx="18" fill="rgb(230,133,172)"/>
+    <rect x="855" y="378" width="70" height="52" rx="4" fill="#ffffff" opacity="0.95"/>
+    <line x1="865" y1="392" x2="915" y2="392" stroke="rgb(230,133,172)" stroke-width="4"/>
+    <line x1="865" y1="404" x2="915" y2="404" stroke="rgb(230,133,172)" stroke-width="4"/>
+    <line x1="865" y1="416" x2="898" y2="416" stroke="rgb(230,133,172)" stroke-width="4"/>
+    <text x="900" y="440" text-anchor="middle" font-size="22" fill="#ffffff" font-weight="600">Result</text>
+    <text x="900" y="462" text-anchor="middle" font-size="14" fill="#fdeaf1">fed back to the model</text>
+  </g>
+
+  <!-- Done node -->
+  <g>
+    <rect x="975" y="70" width="185" height="100" rx="24" fill="rgb(112,195,148)"/>
+    <circle cx="1015" cy="120" r="16" fill="#ffffff"/>
+    <path d="M1008 120 l6 7 12 -14" stroke="rgb(112,195,148)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1078" y="127" text-anchor="middle" font-size="20" fill="#ffffff" font-weight="600">Done</text>
+  </g>
+
+  <text x="600" y="555" text-anchor="middle" font-size="17" fill="#5a6b8c">agentic loop &#8212; repeat until stop_reason says the turn is over</text>
+</svg>

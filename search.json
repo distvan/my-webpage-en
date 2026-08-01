@@ -1,6 +1,26 @@
 [
 
 {
+"category": "AI",
+"title": "Production Agent Architecture: The Coordinator Subagent (Part 2)",
+"description": "Production Agent Architecture: The Coordinator Subagent (Part 2)Lessons Learn...",
+"url": "/blog/coordinator-subagent.html",
+"image": "/assets/images/articles/coordinator-subagent.svg",
+"author": "Istvan Dobrentei"
+}
+,
+
+{
+"category": "AI",
+"title": "Production Agent Architecture: The Agentic Loop (Part 1)",
+"description": "Production Agent Architecture: The Agentic Loop (Part 1)Lessons learned while...",
+"url": "/blog/agentic-loop.html",
+"image": "/assets/images/articles/agentic-loop.svg",
+"author": "Istvan Dobrentei"
+}
+,
+
+{
 "category": "IoT",
 "title": "MQTT: The Protocol Designed for a World Where Things Fail",
 "description": "Imagine thousands of sensors distributed across a factory, a fleet of deliver...",
