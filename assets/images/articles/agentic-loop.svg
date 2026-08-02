@@ -25,8 +25,8 @@
   <text x="840" y="270" text-anchor="middle" font-size="14" fill="#5a6b8c">next step</text>
 
   <!-- exit path: Model -> Done -->
-  <path d="M732,120 C 850,120 900,120 975,120" stroke="#96a8cc" stroke-width="3" fill="none" stroke-dasharray="2 6" marker-end="url(#arrow)"/>
-  <text x="855" y="100" text-anchor="middle" font-size="14" fill="#5a6b8c">end_turn</text>
+  <path d="M732,120 C 830,120 880,120 950,120" stroke="#96a8cc" stroke-width="3" fill="none" stroke-dasharray="2 6" marker-end="url(#arrow)"/>
+  <text x="841" y="100" text-anchor="middle" font-size="14" fill="#5a6b8c">end_turn</text>
 
   <!-- Model node -->
   <g>
@@ -56,20 +56,20 @@
   <!-- Result node -->
   <g>
     <rect x="780" y="340" width="240" height="140" rx="18" fill="rgb(230,133,172)"/>
-    <rect x="855" y="378" width="70" height="52" rx="4" fill="#ffffff" opacity="0.95"/>
-    <line x1="865" y1="392" x2="915" y2="392" stroke="rgb(230,133,172)" stroke-width="4"/>
-    <line x1="865" y1="404" x2="915" y2="404" stroke="rgb(230,133,172)" stroke-width="4"/>
-    <line x1="865" y1="416" x2="898" y2="416" stroke="rgb(230,133,172)" stroke-width="4"/>
+    <rect x="860" y="372" width="80" height="40" rx="4" fill="#ffffff" opacity="0.95"/>
+    <line x1="870" y1="386" x2="930" y2="386" stroke="rgb(230,133,172)" stroke-width="4"/>
+    <line x1="870" y1="398" x2="930" y2="398" stroke="rgb(230,133,172)" stroke-width="4"/>
+    <line x1="870" y1="410" x2="908" y2="410" stroke="rgb(230,133,172)" stroke-width="4"/>
     <text x="900" y="440" text-anchor="middle" font-size="22" fill="#ffffff" font-weight="600">Result</text>
     <text x="900" y="462" text-anchor="middle" font-size="14" fill="#fdeaf1">fed back to the model</text>
   </g>
 
   <!-- Done node -->
   <g>
-    <rect x="975" y="70" width="185" height="100" rx="24" fill="rgb(112,195,148)"/>
-    <circle cx="1015" cy="120" r="16" fill="#ffffff"/>
-    <path d="M1008 120 l6 7 12 -14" stroke="rgb(112,195,148)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="1078" y="127" text-anchor="middle" font-size="20" fill="#ffffff" font-weight="600">Done</text>
+    <rect x="950" y="75" width="170" height="95" rx="22" fill="rgb(112,195,148)"/>
+    <circle cx="990" cy="122" r="16" fill="#ffffff"/>
+    <path d="M983 122 l6 7 12 -14" stroke="rgb(112,195,148)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1063" y="129" text-anchor="middle" font-size="20" fill="#ffffff" font-weight="600">Done</text>
   </g>
 
   <text x="600" y="555" text-anchor="middle" font-size="17" fill="#5a6b8c">agentic loop &#8212; repeat until stop_reason says the turn is over</text>

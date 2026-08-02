@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="'Source Sans Pro', 'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef4fb"/>
+      <stop offset="100%" stop-color="#e4ecf7"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#96a8cc"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="600" fill="url(#bg)"/>
+
+  <!-- parallel spawn arrows: Coordinator -> Doc A / Doc B -->
+  <path d="M555,175 C 460,200 320,205 250,228" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M645,175 C 740,200 880,205 950,228" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <circle cx="330" cy="210" r="6" fill="rgb(112,195,148)"/>
+  <circle cx="870" cy="210" r="6" fill="rgb(112,195,148)"/>
+  <text x="600" y="205" text-anchor="middle" font-size="14" fill="#5a6b8c">parallel spawn, same turn</text>
+
+  <!-- explicit findings arrows: Doc A / Doc B -> Synthesis -->
+  <path d="M280,360 C 380,400 460,412 515,426" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M920,360 C 820,400 740,412 685,426" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="600" y="405" text-anchor="middle" font-size="14" fill="#5a6b8c">findings passed explicitly, verbatim</text>
+  <text x="600" y="422" text-anchor="middle" font-size="12" fill="#8091b8" font-style="italic">CLAIM | SOURCE | PAGE</text>
+
+  <!-- Coordinator node -->
+  <g>
+    <rect x="480" y="40" width="240" height="135" rx="18" fill="rgb(124,142,222)"/>
+    <circle cx="555" cy="88" r="10" fill="#ffffff"/>
+    <circle cx="600" cy="78" r="10" fill="#ffffff"/>
+    <circle cx="645" cy="88" r="10" fill="#ffffff"/>
+    <line x1="555" y1="88" x2="600" y2="78" stroke="#ffffff" stroke-width="2"/>
+    <line x1="600" y1="78" x2="645" y2="88" stroke="#ffffff" stroke-width="2"/>
+    <line x1="555" y1="88" x2="600" y2="110" stroke="#ffffff" stroke-width="2"/>
+    <line x1="645" y1="88" x2="600" y2="110" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="600" cy="110" r="10" fill="#ffffff"/>
+    <text x="600" y="145" text-anchor="middle" font-size="22" fill="#ffffff" font-weight="600">Coordinator</text>
+    <text x="600" y="166" text-anchor="middle" font-size="14" fill="#eaeaff">spawns via the Task tool</text>
+  </g>
+
+  <!-- Doc analysis A -->
+  <g>
+    <rect x="110" y="230" width="240" height="130" rx="16" fill="rgb(113,178,222)"/>
+    <rect x="190" y="250" width="80" height="50" rx="4" fill="#ffffff" opacity="0.95"/>
+    <line x1="200" y1="263" x2="260" y2="263" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <line x1="200" y1="275" x2="260" y2="275" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <line x1="200" y1="287" x2="240" y2="287" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <text x="230" y="325" text-anchor="middle" font-size="19" fill="#ffffff" font-weight="600">Doc analysis A</text>
+    <text x="230" y="345" text-anchor="middle" font-size="13" fill="#eaf2fb">own loop, own tools</text>
+  </g>
+
+  <!-- Doc analysis B -->
+  <g>
+    <rect x="850" y="230" width="240" height="130" rx="16" fill="rgb(113,178,222)"/>
+    <rect x="930" y="250" width="80" height="50" rx="4" fill="#ffffff" opacity="0.95"/>
+    <line x1="940" y1="263" x2="1000" y2="263" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <line x1="940" y1="275" x2="1000" y2="275" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <line x1="940" y1="287" x2="980" y2="287" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <text x="970" y="325" text-anchor="middle" font-size="19" fill="#ffffff" font-weight="600">Doc analysis B</text>
+    <text x="970" y="345" text-anchor="middle" font-size="13" fill="#eaf2fb">own loop, own tools</text>
+  </g>
+
+  <!-- Synthesis node -->
+  <g>
+    <rect x="480" y="430" width="240" height="130" rx="18" fill="rgb(230,133,172)"/>
+    <circle cx="580" cy="465" r="14" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9"/>
+    <circle cx="608" cy="465" r="14" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9"/>
+    <text x="600" y="500" text-anchor="middle" font-size="19" fill="#ffffff" font-weight="600">Synthesis</text>
+    <text x="600" y="520" text-anchor="middle" font-size="13" fill="#fdeaf1">no tools &#8212; text in only</text>
+  </g>
+
+  <text x="600" y="590" text-anchor="middle" font-size="17" fill="#5a6b8c">configure subagent invocation &#8212; explicit context, parallel spawn, structured handoff</text>
+</svg>

@@ -2,8 +2,18 @@
 
 {
 "category": "AI",
+"title": "Production Agent Architecture: Configure Subagent Invocation (Part 3)",
+"description": "Lessons Learned While Preparing for the Claude Architect CertificationA diffe...",
+"url": "/blog/configure-subagent-invocation.html",
+"image": "/assets/images/articles/configure-subagent-invocation.svg",
+"author": "Istvan Dobrentei"
+}
+,
+
+{
+"category": "AI",
 "title": "Production Agent Architecture: The Coordinator Subagent (Part 2)",
-"description": "Production Agent Architecture: The Coordinator Subagent (Part 2)Lessons Learn...",
+"description": "Lessons Learned While Preparing for the Claude Architect CertificationFrom on...",
 "url": "/blog/coordinator-subagent.html",
 "image": "/assets/images/articles/coordinator-subagent.svg",
 "author": "Istvan Dobrentei"
@@ -13,7 +23,7 @@
 {
 "category": "AI",
 "title": "Production Agent Architecture: The Agentic Loop (Part 1)",
-"description": "Production Agent Architecture: The Agentic Loop (Part 1)Lessons learned while...",
+"description": "Lessons learned while preparing for the Claude Architect CertificationWhat is...",
 "url": "/blog/agentic-loop.html",
 "image": "/assets/images/articles/agentic-loop.svg",
 "author": "Istvan Dobrentei"
