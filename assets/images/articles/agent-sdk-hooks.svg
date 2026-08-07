@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="'Source Sans Pro', 'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef4fb"/>
+      <stop offset="100%" stop-color="#e4ecf7"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#96a8cc"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="600" fill="url(#bg)"/>
+
+  <!-- Agent -> process_refund (through PreToolUse) -->
+  <path d="M555,175 C 460,200 320,205 250,228" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <!-- Agent -> lookup_order -->
+  <path d="M645,175 C 740,200 880,205 950,228" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- process_refund -> escalate note (blocked path) -->
+  <text x="230" y="405" text-anchor="middle" font-size="12" fill="#8091b8" font-style="italic">blocked call &#8594; escalate_to_human</text>
+
+  <!-- lookup_order -> unified shape -->
+  <path d="M920,360 C 830,400 750,412 690,426" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M280,360 C 380,400 460,412 515,426" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)" opacity="0.35"/>
+  <text x="600" y="405" text-anchor="middle" font-size="14" fill="#5a6b8c">two backends, one shape out</text>
+
+  <!-- Agent node -->
+  <g>
+    <rect x="480" y="40" width="240" height="135" rx="18" fill="rgb(124,142,222)"/>
+    <circle cx="555" cy="88" r="10" fill="#ffffff"/>
+    <circle cx="600" cy="78" r="10" fill="#ffffff"/>
+    <circle cx="645" cy="88" r="10" fill="#ffffff"/>
+    <line x1="555" y1="88" x2="600" y2="78" stroke="#ffffff" stroke-width="2"/>
+    <line x1="600" y1="78" x2="645" y2="88" stroke="#ffffff" stroke-width="2"/>
+    <line x1="555" y1="88" x2="600" y2="110" stroke="#ffffff" stroke-width="2"/>
+    <line x1="645" y1="88" x2="600" y2="110" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="600" cy="110" r="10" fill="#ffffff"/>
+    <text x="600" y="145" text-anchor="middle" font-size="22" fill="#ffffff" font-weight="600">Support Agent</text>
+    <text x="600" y="166" text-anchor="middle" font-size="14" fill="#eaeaff">hooks sit between model and tool</text>
+  </g>
+
+  <!-- process_refund -->
+  <g>
+    <rect x="110" y="230" width="240" height="130" rx="16" fill="rgb(113,178,222)"/>
+    <rect x="190" y="255" width="80" height="55" rx="6" fill="#ffffff" opacity="0.95"/>
+    <text x="230" y="290" text-anchor="middle" font-size="22" fill="rgb(113,178,222)" font-weight="700">$</text>
+    <text x="230" y="325" text-anchor="middle" font-size="19" fill="#ffffff" font-weight="600">process_refund</text>
+    <text x="230" y="345" text-anchor="middle" font-size="13" fill="#eaf2fb">no policy logic inside</text>
+  </g>
+
+  <!-- lookup_order -->
+  <g>
+    <rect x="850" y="230" width="240" height="130" rx="16" fill="rgb(113,178,222)"/>
+    <rect x="930" y="250" width="80" height="50" rx="4" fill="#ffffff" opacity="0.95"/>
+    <line x1="940" y1="263" x2="1000" y2="263" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <line x1="940" y1="275" x2="1000" y2="275" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <line x1="940" y1="287" x2="980" y2="287" stroke="rgb(113,178,222)" stroke-width="4"/>
+    <text x="970" y="325" text-anchor="middle" font-size="19" fill="#ffffff" font-weight="600">lookup_order</text>
+    <text x="970" y="345" text-anchor="middle" font-size="13" fill="#eaf2fb">legacy + modern backend</text>
+  </g>
+
+  <!-- PreToolUse checkpoint badge, sitting in the gap above the process_refund box -->
+  <g transform="translate(330,196)">
+    <polygon points="0,-17 15,-8.5 15,8.5 0,17 -15,8.5 -15,-8.5" fill="#ffffff" stroke="rgb(230,133,172)" stroke-width="3"/>
+    <line x1="-7" y1="-7" x2="7" y2="7" stroke="rgb(230,133,172)" stroke-width="3"/>
+    <line x1="7" y1="-7" x2="-7" y2="7" stroke="rgb(230,133,172)" stroke-width="3"/>
+  </g>
+  <text x="330" y="223" text-anchor="middle" font-size="13" fill="#5a6b8c" font-weight="600">PreToolUse</text>
+
+  <!-- PostToolUse funnel badge, sitting in the gap above the lookup_order box -->
+  <g transform="translate(870,196)">
+    <circle cx="0" cy="0" r="16" fill="#ffffff" stroke="rgb(112,195,148)" stroke-width="3"/>
+    <path d="M-8,-5 h16 l-5.5,6 v6 h-5 v-6 z" fill="rgb(112,195,148)"/>
+  </g>
+  <text x="870" y="223" text-anchor="middle" font-size="13" fill="#5a6b8c" font-weight="600">PostToolUse</text>
+
+  <!-- unified result -->
+  <g>
+    <rect x="480" y="430" width="240" height="130" rx="18" fill="rgb(230,133,172)"/>
+    <text x="600" y="468" text-anchor="middle" font-size="16" fill="#ffffff" font-weight="600">status=delivered</text>
+    <text x="600" y="490" text-anchor="middle" font-size="16" fill="#ffffff" font-weight="600">date=2025-06-20</text>
+    <text x="600" y="512" text-anchor="middle" font-size="16" fill="#ffffff" font-weight="600">amount=$79.99</text>
+    <text x="600" y="535" text-anchor="middle" font-size="12" fill="#fbdce8" font-style="italic">same shape, either backend</text>
+  </g>
+
+  <text x="600" y="590" text-anchor="middle" font-size="17" fill="#5a6b8c">Agent SDK hooks &#8212; PreToolUse interception, PostToolUse normalization</text>
+</svg>

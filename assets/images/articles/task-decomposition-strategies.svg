@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="'Source Sans Pro', 'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef4fb"/>
+      <stop offset="100%" stop-color="#e4ecf7"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#96a8cc"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="600" fill="url(#bg)"/>
+
+  <!-- divider -->
+  <line x1="600" y1="60" x2="600" y2="555" stroke="#b7c3e0" stroke-width="2" stroke-dasharray="6,6"/>
+  <circle cx="600" cy="300" r="22" fill="#ffffff" stroke="#96a8cc" stroke-width="2"/>
+  <text x="600" y="305" text-anchor="middle" font-size="13" fill="#5a6b8c" font-style="italic">vs</text>
+
+  <!-- headers -->
+  <text x="280" y="42" text-anchor="middle" font-size="18" fill="#3f4f78" font-weight="700">PROMPT CHAINING</text>
+  <text x="280" y="60" text-anchor="middle" font-size="12" fill="#5a6b8c">fixed sequence, written in code</text>
+
+  <text x="900" y="42" text-anchor="middle" font-size="18" fill="#3f4f78" font-weight="700">DYNAMIC DECOMPOSITION</text>
+  <text x="900" y="60" text-anchor="middle" font-size="12" fill="#5a6b8c">model decides step count &amp; order</text>
+
+  <!-- convergent arrows: files -> integrate -->
+  <path d="M135,150 C 150,190 220,225 280,258" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M300,150 L 300,258" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M465,150 C 450,190 380,225 320,258" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- three file boxes -->
+  <g>
+    <rect x="60" y="80" width="150" height="70" rx="12" fill="rgb(113,178,222)"/>
+    <rect x="115" y="90" width="40" height="26" rx="4" fill="#ffffff" opacity="0.95"/>
+    <line x1="121" y1="99" x2="149" y2="99" stroke="rgb(113,178,222)" stroke-width="3"/>
+    <line x1="121" y1="107" x2="143" y2="107" stroke="rgb(113,178,222)" stroke-width="3"/>
+    <text x="135" y="142" text-anchor="middle" font-size="14" fill="#ffffff" font-weight="600">auth.py</text>
+    <circle cx="72" cy="92" r="11" fill="rgb(112,195,148)"/>
+    <path d="M72,86 v-5 a5,5 0 0 1 10,0 v5" fill="none" stroke="#ffffff" stroke-width="2"/>
+    <rect x="68" y="89" width="8" height="7" rx="1.5" fill="#ffffff"/>
+  </g>
+  <g>
+    <rect x="225" y="80" width="150" height="70" rx="12" fill="rgb(113,178,222)"/>
+    <rect x="280" y="90" width="40" height="26" rx="4" fill="#ffffff" opacity="0.95"/>
+    <line x1="286" y1="99" x2="314" y2="99" stroke="rgb(113,178,222)" stroke-width="3"/>
+    <line x1="286" y1="107" x2="308" y2="107" stroke="rgb(113,178,222)" stroke-width="3"/>
+    <text x="300" y="142" text-anchor="middle" font-size="14" fill="#ffffff" font-weight="600">orders.py</text>
+  </g>
+  <g>
+    <rect x="390" y="80" width="150" height="70" rx="12" fill="rgb(113,178,222)"/>
+    <rect x="445" y="90" width="40" height="26" rx="4" fill="#ffffff" opacity="0.95"/>
+    <line x1="451" y1="99" x2="479" y2="99" stroke="rgb(113,178,222)" stroke-width="3"/>
+    <line x1="451" y1="107" x2="473" y2="107" stroke="rgb(113,178,222)" stroke-width="3"/>
+    <text x="465" y="142" text-anchor="middle" font-size="14" fill="#ffffff" font-weight="600">payments.py</text>
+  </g>
+
+  <!-- integrate box -->
+  <g>
+    <rect x="140" y="260" width="320" height="120" rx="16" fill="rgb(230,133,172)"/>
+    <text x="300" y="300" text-anchor="middle" font-size="18" fill="#ffffff" font-weight="600">integrate_findings</text>
+    <text x="300" y="323" text-anchor="middle" font-size="12.5" fill="#fdeaf1">sees every file's findings verbatim</text>
+    <text x="300" y="342" text-anchor="middle" font-size="12.5" fill="#fdeaf1">catches drift no single review can</text>
+  </g>
+  <text x="300" y="410" text-anchor="middle" font-size="13" fill="#5a6b8c" font-style="italic">len(files) + 1 calls, fixed before the first request</text>
+
+  <!-- Dynamic Agent box -->
+  <g>
+    <rect x="730" y="80" width="340" height="110" rx="18" fill="rgb(124,142,222)"/>
+    <circle cx="855" cy="118" r="9" fill="#ffffff"/>
+    <circle cx="900" cy="110" r="9" fill="#ffffff"/>
+    <circle cx="945" cy="118" r="9" fill="#ffffff"/>
+    <line x1="855" y1="118" x2="900" y2="110" stroke="#ffffff" stroke-width="2"/>
+    <line x1="900" y1="110" x2="945" y2="118" stroke="#ffffff" stroke-width="2"/>
+    <line x1="855" y1="118" x2="900" y2="138" stroke="#ffffff" stroke-width="2"/>
+    <line x1="945" y1="118" x2="900" y2="138" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="900" cy="138" r="9" fill="#ffffff"/>
+    <text x="900" y="165" text-anchor="middle" font-size="19" fill="#ffffff" font-weight="600">Dynamic Agent</text>
+    <text x="900" y="183" text-anchor="middle" font-size="12.5" fill="#eaeaff">list_files / read_file &#8212; loop from Part 1</text>
+  </g>
+
+  <!-- self-loop badge on the agent, drawn after the box so it stays visible -->
+  <g transform="translate(1050,95)">
+    <circle cx="0" cy="0" r="17" fill="#ffffff" stroke="rgb(112,195,148)" stroke-width="3"/>
+    <path d="M-8,-2 a8,8 0 1 1 3,6" fill="none" stroke="rgb(112,195,148)" stroke-width="2.5"/>
+    <path d="M-5,4 l-3,4 l6,1 z" fill="rgb(112,195,148)"/>
+  </g>
+  <text x="1050" y="128" text-anchor="middle" font-size="11" fill="#5a6b8c" font-weight="600">repeats until done</text>
+
+  <!-- arrow: agent -> output -->
+  <path d="M900,190 L 900,258" stroke="#96a8cc" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- output box -->
+  <g>
+    <rect x="730" y="260" width="340" height="120" rx="16" fill="rgb(230,133,172)"/>
+    <text x="900" y="300" text-anchor="middle" font-size="18" fill="#ffffff" font-weight="600">payments.py first</text>
+    <text x="900" y="323" text-anchor="middle" font-size="12.5" fill="#fdeaf1">ranked by what reading found</text>
+    <text x="900" y="342" text-anchor="middle" font-size="12.5" fill="#fdeaf1">not a template filled in advance</text>
+  </g>
+  <text x="900" y="410" text-anchor="middle" font-size="13" fill="#5a6b8c" font-style="italic">step count is a consequence of findings, not fixed upfront</text>
+
+  <text x="600" y="585" text-anchor="middle" font-size="17" fill="#5a6b8c">task decomposition &#8212; fixed pipeline for predictable jobs, model-driven loop for open-ended ones</text>
+</svg>

@@ -1,4 +1,467 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.2">Jekyll</generator><link href="https://www.en.dobrenteiistvan.hu/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.en.dobrenteiistvan.hu/" rel="alternate" type="text/html" /><updated>2026-08-02T15:19:52+00:00</updated><id>https://www.en.dobrenteiistvan.hu/feed.xml</id><title type="html">Döbrentei István</title><subtitle>Döbrentei István oldala</subtitle><entry><title type="html">Production Agent Architecture: Configure Subagent Invocation (Part 3)</title><link href="https://www.en.dobrenteiistvan.hu/blog/configure-subagent-invocation.html" rel="alternate" type="text/html" title="Production Agent Architecture: Configure Subagent Invocation (Part 3)" /><published>2026-08-02T00:00:00+00:00</published><updated>2026-08-02T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/configure-subagent-invocation</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/configure-subagent-invocation.html"><![CDATA[<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.2">Jekyll</generator><link href="https://www.en.dobrenteiistvan.hu/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.en.dobrenteiistvan.hu/" rel="alternate" type="text/html" /><updated>2026-08-07T17:15:50+00:00</updated><id>https://www.en.dobrenteiistvan.hu/feed.xml</id><title type="html">Döbrentei István</title><subtitle>Döbrentei István oldala</subtitle><entry><title type="html">Production Agent Architecture: Manage Session State (Part 7)</title><link href="https://www.en.dobrenteiistvan.hu/blog/manage-session-state.html" rel="alternate" type="text/html" title="Production Agent Architecture: Manage Session State (Part 7)" /><published>2026-08-06T00:00:00+00:00</published><updated>2026-08-06T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/manage-session-state</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/manage-session-state.html"><![CDATA[<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
+
+<h2 id="the-last-piece-of-domain-1">The last piece of Domain 1</h2>
+
+<p>Every part so far has run inside one process, start to finish: launch the script, the loop does its work, the script ends, nothing survives it. Task 1.7 is about the gap that leaves — what happens when the work spans more than one sitting. You investigate something today, close your laptop, and come back to it tomorrow. Or you reach a point where two different next steps both seem worth trying, and you don’t want either one to interfere with the other.</p>
+
+<p>The example this time is one small file, <code class="language-plaintext highlighter-rouge">cache.py</code>, investigated the way you’d actually investigate something real: not in a single conversation, but across several. A session gets started, closed, picked back up, and split into two directions — and once, the file itself changes in between.</p>
+
+<h2 id="a-session-is-just-a-saved-conversation">A session is just a saved conversation</h2>
+
+<p>Nothing exotic sits behind <code class="language-plaintext highlighter-rouge">--resume &lt;name&gt;</code> or <code class="language-plaintext highlighter-rouge">fork_session</code>. Both are built on one idea: a session is the <code class="language-plaintext highlighter-rouge">messages</code> list the loop has been building up all along, saved somewhere under a name.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">save_session</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">messages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">as_plain_dict</span><span class="p">(</span><span class="n">block</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="s">"model_dump"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">block</span><span class="p">.</span><span class="n">model_dump</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="nb">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s">"Not JSON-serializable: </span><span class="si">{</span><span class="n">block</span><span class="si">!r}</span><span class="s">"</span><span class="p">)</span>
+
+    <span class="p">(</span><span class="n">SESSION_DIR</span> <span class="o">/</span> <span class="sa">f</span><span class="s">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s">.json"</span><span class="p">).</span><span class="n">write_text</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">as_plain_dict</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">load_session</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">|</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">SESSION_DIR</span> <span class="o">/</span> <span class="sa">f</span><span class="s">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s">.json"</span>
+    <span class="k">return</span> <span class="n">json</span><span class="p">.</span><span class="n">loads</span><span class="p">(</span><span class="n">path</span><span class="p">.</span><span class="n">read_text</span><span class="p">())</span> <span class="k">if</span> <span class="n">path</span><span class="p">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="bp">None</span>
+</code></pre></div></div>
+
+<p>The one wrinkle is that an assistant turn’s content isn’t plain data — it’s a list of SDK objects (a <code class="language-plaintext highlighter-rouge">TextBlock</code>, a <code class="language-plaintext highlighter-rouge">ToolUseBlock</code>), and <code class="language-plaintext highlighter-rouge">json.dumps</code> doesn’t know what to do with those on its own. <code class="language-plaintext highlighter-rouge">default=as_plain_dict</code> is the fix: whenever the encoder hits something it can’t serialize directly, it calls <code class="language-plaintext highlighter-rouge">.model_dump()</code> on it first. Everything else in <code class="language-plaintext highlighter-rouge">messages</code> — the user turns, the tool results — is already a plain dict and never touches that path.</p>
+
+<p>Because sessions now need to survive as data instead of live SDK objects, the loop itself changes shape slightly from the earlier parts. It takes a starting <code class="language-plaintext highlighter-rouge">messages</code> list instead of building one from a single opening message, and it hands the full updated list back at the end, so the caller has something to save:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">run_agentic_loop</span><span class="p">(</span>
+    <span class="n">messages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+    <span class="n">system</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">tools</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+    <span class="n">tool_impls</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[...,</span> <span class="nb">str</span><span class="p">]],</span>
+    <span class="n">max_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_ITERATIONS</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]:</span>
+    <span class="p">...</span>
+</code></pre></div></div>
+
+<p>Everything downstream of this is just two ways of using that list: resume one by name, or copy one under a new name.</p>
+
+<h2 id="resuming-continuing-under-a-name">Resuming: continuing under a name</h2>
+
+<p>There’s deliberately no separate “start a new session” function here. <code class="language-plaintext highlighter-rouge">resume_session</code> handles both cases, because <code class="language-plaintext highlighter-rouge">--resume &lt;name&gt;</code> in the real CLI does too — a name either already has a saved conversation behind it, or it doesn’t, and the same command works either way:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">resume_session</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">user_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">system</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">tools</span><span class="p">,</span> <span class="n">tool_impls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">messages</span> <span class="o">=</span> <span class="n">load_session</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="n">messages</span><span class="p">.</span><span class="n">append</span><span class="p">({</span><span class="s">"role"</span><span class="p">:</span> <span class="s">"user"</span><span class="p">,</span> <span class="s">"content"</span><span class="p">:</span> <span class="n">user_message</span><span class="p">})</span>
+    <span class="n">answer</span><span class="p">,</span> <span class="n">messages</span> <span class="o">=</span> <span class="n">run_agentic_loop</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">system</span><span class="p">,</span> <span class="n">tools</span><span class="p">,</span> <span class="n">tool_impls</span><span class="p">)</span>
+    <span class="n">save_session</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">messages</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">answer</span>
+</code></pre></div></div>
+
+<p>Starting a session named <code class="language-plaintext highlighter-rouge">"cache-investigation"</code> and asking it to read <code class="language-plaintext highlighter-rouge">cache.py</code>, then resuming that same name with “is this safe to call from multiple threads at once?”, the second call never touches <code class="language-plaintext highlighter-rouge">read_cache_file</code> again — the file’s contents are already sitting in the saved history from the first call, and the follow-up answers straight from that. That’s the entire value of <code class="language-plaintext highlighter-rouge">--resume &lt;name&gt;</code>: the next work session picks up exactly where the last one left off, without repeating the investigation.</p>
+
+<p>You can find the full file on <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.7%20Session%20state%2C%20resumption%2C%20and%20forking/session_management_minimal.py">GitHub</a>. A <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.7%20Session%20state%2C%20resumption%2C%20and%20forking/session_management_minimal.php">PHP port</a> is available too, built the same way as the earlier parts — and slightly simpler on this one point, since every SDK response object in the PHP library already implements <code class="language-plaintext highlighter-rouge">JsonSerializable</code>, so a plain <code class="language-plaintext highlighter-rouge">json_encode($messages)</code> handles the conversion with no extra step at all.</p>
+
+<h2 id="forking-two-branches-one-shared-baseline">Forking: two branches, one shared baseline</h2>
+
+<p><code class="language-plaintext highlighter-rouge">fork_session</code> is even smaller than resuming — it doesn’t run the loop at all, it just copies a saved session under a new name:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">fork_session</span><span class="p">(</span><span class="n">source_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="n">messages</span> <span class="o">=</span> <span class="n">load_session</span><span class="p">(</span><span class="n">source_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">messages</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="nb">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s">"No saved session named </span><span class="si">{</span><span class="n">source_name</span><span class="si">!r}</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">save_session</span><span class="p">(</span><span class="n">new_name</span><span class="p">,</span> <span class="n">messages</span><span class="p">)</span>  <span class="c1"># new_name now has its own copy to diverge from
+</span></code></pre></div></div>
+
+<p>Forking <code class="language-plaintext highlighter-rouge">"cache-investigation"</code> into <code class="language-plaintext highlighter-rouge">"cache-investigation-thread-safety"</code> and <code class="language-plaintext highlighter-rouge">"cache-investigation-ttl"</code> gives both names an identical copy of everything established so far — the same file, the same initial analysis. Resuming each one with a different question from there (one about thread safety, one about adding expiration) sends them in genuinely different directions, and neither resume touches the other’s saved file. That’s what makes it a fork instead of two independent investigations: both branches start from work that’s already been done once, instead of paying to redo it twice.</p>
+
+<h2 id="when-resuming-isnt-enough">When resuming isn’t enough</h2>
+
+<p>Resuming assumes the world hasn’t changed since the session was saved. Sometimes it has — the fake <code class="language-plaintext highlighter-rouge">cache.py</code> in this example gets edited partway through, gaining a <code class="language-plaintext highlighter-rouge">threading.Lock</code> it didn’t have when the earlier sessions read it. Asking the resumed session for a recap after that edit is a real test of what “trusting a resumed session” actually costs:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[blind resume, no mention of the edit — outcome depends on the model]
+Thread-safety verdict: ❌ Not thread-safe. A race condition exists between
+the key check and the cache write...
+
+[informed resume: told exactly what changed]
+Yes, the updated cache.py is now thread-safe. The threading.Lock() ensures
+that only one thread at a time can execute the critical section...
+</code></pre></div></div>
+
+<p>In this run, the blind resume answered from the stale tool result still sitting in its history — the file had already changed, but nothing told the session that, and nothing forced it to check again. That’s not a guaranteed outcome; a model asked a more pointed question, or just choosing to double-check, can and sometimes does re-read the file on its own. That inconsistency is exactly the problem: whether a blind resume gets it right is a gamble on what the model decides to do, not something the code guarantees either way.</p>
+
+<p>The fix removes the gamble instead of hoping to win it. Telling the resumed session directly what changed —</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">resume_session</span><span class="p">(</span>
+    <span class="s">"cache-investigation"</span><span class="p">,</span>
+    <span class="sa">f</span><span class="s">"cache.py was just edited. Its new contents:</span><span class="se">\n\n</span><span class="si">{</span><span class="n">CACHE_FILE_V2</span><span class="si">}</span><span class="se">\n\n</span><span class="s">"</span>
+    <span class="s">"Given this update, is it thread-safe now?"</span><span class="p">,</span>
+    <span class="n">SYSTEM_PROMPT</span><span class="p">,</span> <span class="n">TOOLS</span><span class="p">,</span> <span class="n">TOOL_IMPLS</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>— means the answer no longer depends on whether the model thinks to re-check anything. The current state is already in the prompt.</p>
+
+<p>For a single file, a short note like that is enough. When a lot has changed since the last session, re-explaining each change piece by piece stops being practical, and a saved session might also be dragging along a long history of tool calls that are no longer relevant to what’s being asked now. That’s when it’s more reliable to stop resuming and start over instead, seeding the fresh session with a short, structured summary of what’s actually still true:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">start_fresh_with_summary</span><span class="p">(</span>
+    <span class="s">"Prior finding: cache.py used to have no locking around its dict access. "</span>
+    <span class="s">"It has since been edited to wrap that access in a threading.Lock."</span><span class="p">,</span>
+    <span class="s">"Is the cache thread-safe now?"</span><span class="p">,</span>
+    <span class="n">SYSTEM_PROMPT</span><span class="p">,</span> <span class="n">TOOLS</span><span class="p">,</span> <span class="n">TOOL_IMPLS</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>No file on disk, no accumulated tool results from three prior turns — just the one fact that’s still relevant, stated directly. In this run, the fresh-start answer went further than either resume: it confirmed the lock fixes the original race condition, but also noticed that <code class="language-plaintext highlighter-rouge">expensive_lookup</code> runs while the lock is held, which risks serializing every call and could deadlock if that function ever calls back into <code class="language-plaintext highlighter-rouge">get</code>. Nothing about starting fresh caused that extra insight, but nothing about a bloated resumed history was competing for the model’s attention either.</p>
+
+<h2 id="critical-design-decisions">Critical design decisions</h2>
+
+<ul>
+  <li><strong>A session is data, not a live object</strong>: saving one means converting SDK response objects into plain dicts first. <code class="language-plaintext highlighter-rouge">save_session</code>’s <code class="language-plaintext highlighter-rouge">default=as_plain_dict</code> is where that conversion happens, once, instead of scattered through the rest of the code.</li>
+  <li><strong>The loop hands its state back</strong>: <code class="language-plaintext highlighter-rouge">run_agentic_loop</code> returns the full updated <code class="language-plaintext highlighter-rouge">messages</code> list because something outside it — <code class="language-plaintext highlighter-rouge">resume_session</code> — needs to persist it. A loop that only returns a final answer has nothing left to save.</li>
+  <li><strong>One function for “start” and “continue”</strong>: <code class="language-plaintext highlighter-rouge">resume_session</code> doesn’t need a separate creation path. <code class="language-plaintext highlighter-rouge">load_session(name) or []</code> already says everything that distinction would: either there’s a conversation to build on, or there isn’t, and the rest of the function doesn’t care which.</li>
+  <li><strong>Forking is a copy, not a merge</strong>: <code class="language-plaintext highlighter-rouge">fork_session</code> just duplicates a saved file under a new name. The branches diverge because they get resumed with different questions afterward, not because forking itself does anything clever.</li>
+  <li><strong>Don’t trust a resumed session to notice staleness on its own</strong>: whether it re-checks a changed file is up to the model, not something the code can rely on. Saying what changed, in the resumed prompt itself, is what actually guarantees the answer reflects it.</li>
+  <li><strong>Fresh-with-summary scales better than fresh-with-full-history</strong>: a short, curated summary of what’s still true survives a lot of change better than a long resumed history full of tool results that no longer apply.</li>
+</ul>
+
+<h2 id="consequences">Consequences</h2>
+
+<ul>
+  <li><strong>Treating SDK response objects as if they were already JSON</strong> -&gt; <code class="language-plaintext highlighter-rouge">save_session</code> fails the moment it hits the first <code class="language-plaintext highlighter-rouge">TextBlock</code> or <code class="language-plaintext highlighter-rouge">ToolUseBlock</code>, since neither is serializable without help.</li>
+  <li><strong>A loop that never returns its own message history</strong> -&gt; nothing outside it has anything to hand <code class="language-plaintext highlighter-rouge">save_session</code>, so nothing can be resumed later no matter how well the loop itself works.</li>
+  <li><strong>Assuming a blind resume will notice a changed file</strong> -&gt; sometimes it does, sometimes it recaps last time’s now-outdated conclusion, and which one happens isn’t something the calling code controls.</li>
+  <li><strong>Resuming a long, stale history instead of starting fresh with a summary</strong> -&gt; the model has to sort the parts that still matter from the parts that don’t, using tokens and attention that a short, curated summary wouldn’t have spent at all.</li>
+</ul>
+
+<p>That closes out Domain 1. Every part built on the one before it — a loop that could call tools, a coordinator that could delegate, subagents that got exactly the context they needed, workflows that enforced their own rules instead of asking nicely, hooks that intercepted what the tools saw and did, two shapes of decomposition for two shapes of problem, and now, sessions that outlive the process that started them.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="AI" /><category term="Claude" /><summary type="html"><![CDATA[How a saved session is just the agentic loop's messages list written to disk - resuming a name to continue where it left off, forking a session so two branches share a baseline without redoing work, and why a blind resume can't be trusted to notice a changed file without being told, or restarted fresh with a summary.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/manage-session-state.svg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/manage-session-state.svg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Production Agent Architecture: Task Decomposition Strategies (Part 6)</title><link href="https://www.en.dobrenteiistvan.hu/blog/task-decomposition-strategies.html" rel="alternate" type="text/html" title="Production Agent Architecture: Task Decomposition Strategies (Part 6)" /><published>2026-08-05T00:00:00+00:00</published><updated>2026-08-05T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/task-decomposition-strategies</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/task-decomposition-strategies.html"><![CDATA[<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
+
+<h2 id="two-shapes-one-question">Two shapes, one question</h2>
+
+<p>Every part so far has used one shape of loop: give the model a goal and some tools, let it call whatever it wants, keep going until it stops. That shape has a name — dynamic decomposition — but until now the series never had to name it, because there was nothing to contrast it with.</p>
+
+<p>Task 1.6 introduces the contrast. The objective’s own examples are about code review and test-writing, not customer support, so this part switches examples too, the way Part 3 did. The fake project this time is three short files: <code class="language-plaintext highlighter-rouge">auth.py</code>, which checks who’s calling before doing anything, and <code class="language-plaintext highlighter-rouge">orders.py</code> and <code class="language-plaintext highlighter-rouge">payments.py</code>, which don’t. No single file looks broken on its own — the problem only shows up once you compare them.</p>
+
+<p>The question Task 1.6 asks is: given a workflow like that, do you hand the model a goal and let it figure out the steps, or do you write the steps yourself and have the model fill in each one? Both are legitimate. Picking the wrong one for a given job is the actual mistake this task is testing for.</p>
+
+<h2 id="a-fixed-sequence-prompt-chaining">A fixed sequence: prompt chaining</h2>
+
+<p>The first pattern doesn’t use the agentic loop at all. It’s a short Python function that calls the model once per file, then once more at the end. Notice that <code class="language-plaintext highlighter-rouge">review_file</code> takes one file, not all three — that’s deliberate. Pasting every file into a single prompt and asking for one combined review works fine for three short files, but it stops working as the project grows: the more content competes for the model’s attention in one pass, the more likely it is to give some files a thorough read and others a shallow skim. This is what the objective calls attention dilution, and per-file passes sidestep it entirely — no file ever has to share attention with another during its own review.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">review_file</span><span class="p">(</span><span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">messages</span><span class="p">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">MODEL</span><span class="p">,</span>
+        <span class="n">max_tokens</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span>
+        <span class="n">system</span><span class="o">=</span><span class="n">REVIEW_SYSTEM_PROMPT</span><span class="p">,</span>
+        <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s">"role"</span><span class="p">:</span> <span class="s">"user"</span><span class="p">,</span> <span class="s">"content"</span><span class="p">:</span> <span class="sa">f</span><span class="s">"File: </span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="se">\n\n</span><span class="si">{</span><span class="n">content</span><span class="si">}</span><span class="s">"</span><span class="p">}],</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">extract_text</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">run_chained_review</span><span class="p">(</span><span class="n">files</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]:</span>
+    <span class="n">per_file</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">review_file</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">content</span> <span class="ow">in</span> <span class="n">files</span><span class="p">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">return</span> <span class="n">per_file</span><span class="p">,</span> <span class="n">integrate_findings</span><span class="p">(</span><span class="n">per_file</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">run_chained_review</code> always makes exactly <code class="language-plaintext highlighter-rouge">len(files) + 1</code> calls to the model: one per file, plus one integration pass at the end. That count is decided by the Python code before the first API call ever goes out — the model has no say in how many files get reviewed or when the integration pass happens. That’s the whole definition of prompt chaining: a fixed sequence, written in code, where each step’s output becomes the next step’s input.</p>
+
+<p><code class="language-plaintext highlighter-rouge">integrate_findings</code> is the second half of the chain. It gets every file’s findings at once and looks specifically for patterns that no single-file review could catch:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">integrate_findings</span><span class="p">(</span><span class="n">per_file_findings</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">bundle</span> <span class="o">=</span> <span class="s">"</span><span class="se">\n\n</span><span class="s">"</span><span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s">"--- </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s"> ---</span><span class="se">\n</span><span class="si">{</span><span class="n">findings</span><span class="si">}</span><span class="s">"</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">findings</span> <span class="ow">in</span> <span class="n">per_file_findings</span><span class="p">.</span><span class="n">items</span><span class="p">())</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">messages</span><span class="p">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">MODEL</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">system</span><span class="o">=</span><span class="n">INTEGRATION_SYSTEM_PROMPT</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s">"role"</span><span class="p">:</span> <span class="s">"user"</span><span class="p">,</span> <span class="s">"content"</span><span class="p">:</span> <span class="n">bundle</span><span class="p">}]</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">extract_text</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Both functions end the same way: pull the text block out of the response and return it. That’s common enough between them — and with the loop in Pattern 2 below — that it’s its own small function, <code class="language-plaintext highlighter-rouge">extract_text</code>, instead of being repeated three times.</p>
+
+<p>Running this against the three-file project, the per-file pass flagged <code class="language-plaintext highlighter-rouge">payments.py</code> for missing an amount check and <code class="language-plaintext highlighter-rouge">orders.py</code> and <code class="language-plaintext highlighter-rouge">auth.py</code> for their own local issues — each file reviewed with no idea the others exist. The integration pass then caught something none of them could: <code class="language-plaintext highlighter-rouge">auth.py</code>’s review flagged a missing <code class="language-plaintext highlighter-rouge">try/except</code> around its database call, and the integration pass pointed out that <code class="language-plaintext highlighter-rouge">orders.py</code> and <code class="language-plaintext highlighter-rouge">payments.py</code> make the same kind of database call with no such flag anywhere in their own reviews — an inconsistency that’s only visible once you can see all three findings side by side.</p>
+
+<h2 id="no-fixed-sequence-dynamic-decomposition">No fixed sequence: dynamic decomposition</h2>
+
+<p>The second pattern is the agentic loop from Part 1, unchanged, pointed at a more open-ended goal: figure out what to test first in a codebase you haven’t seen yet.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">DYNAMIC_SYSTEM_PROMPT</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s">"You are planning test coverage for a legacy codebase. Use list_files and "</span>
+    <span class="s">"read_file to explore it. Decide yourself which files are worth reading "</span>
+    <span class="s">"and in what order — nothing here fixes that in advance. When you're "</span>
+    <span class="s">"done, give a prioritized list of what to test first and why."</span>
+<span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">run_dynamic_investigation</span><span class="p">(</span><span class="n">goal</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">run_agentic_loop</span><span class="p">(</span>
+        <span class="n">user_message</span><span class="o">=</span><span class="n">goal</span><span class="p">,</span>
+        <span class="n">system</span><span class="o">=</span><span class="n">DYNAMIC_SYSTEM_PROMPT</span><span class="p">,</span>
+        <span class="n">tools</span><span class="o">=</span><span class="n">DYNAMIC_TOOLS</span><span class="p">,</span>
+        <span class="n">tool_impls</span><span class="o">=</span><span class="n">DYNAMIC_TOOL_IMPLS</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div></div>
+
+<p>Nothing in this code decides how many times <code class="language-plaintext highlighter-rouge">read_file</code> gets called, or in what order. On an actual run, the model listed the files, read all three, and ranked <code class="language-plaintext highlighter-rouge">payments.py</code> first — not because a fixed rule said “financial code first,” but because reading it surfaced two separate problems at once (no caller check, no amount check), which made it the most convincing candidate for “test this before anything else” once the model could see both issues together. A fixed pipeline could easily have been written to always review files in the same order, but it couldn’t have produced that specific reasoning without first reading the file and discovering what was actually wrong with it. That’s what “adapts as dependencies are discovered” means in practice: the plan is a consequence of what got found, not a template filled in afterward.</p>
+
+<p>You can find the full file on <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.6%20Task%20decomposition%20strategies/task_decomposition_minimal.py">GitHub</a>. A <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.6%20Task%20decomposition%20strategies/task_decomposition_minimal.php">PHP port</a> is available too, built the same way as the earlier parts.</p>
+
+<h2 id="picking-one-over-the-other">Picking one over the other</h2>
+
+<p>The three files in this example are small enough that either pattern could technically handle both jobs. The point isn’t that one pattern is better — it’s that they fit different shapes of problem, and the shape of the problem is usually obvious before you write a line of code.</p>
+
+<p>A code review over a known, fixed set of files is predictable: you already know how many files there are, and every one of them deserves the same kind of local pass before anything looks at all of them together. That predictability is exactly what a fixed pipeline is good at — it guarantees every file gets reviewed, once, in isolation, with no risk of the model deciding one file doesn’t need a look.</p>
+
+<p>“What should we test first in a codebase we don’t know yet” isn’t predictable the same way. There’s no fixed number of files worth reading, and which ones matter depends entirely on what’s in them — something you can’t know until you’ve looked. Forcing that into a fixed sequence means either reading every file whether it’s relevant or not, or guessing at relevance before you have any evidence for the guess. Letting the model decide, one <code class="language-plaintext highlighter-rouge">read_file</code> call at a time, means it only goes deeper where the code actually gives it a reason to.</p>
+
+<h2 id="critical-design-decisions">Critical design decisions</h2>
+
+<ul>
+  <li><strong>The step count is the tell</strong>: if you can write down the exact number and order of steps before running anything, that’s a sign the job wants prompt chaining. If the right number of steps depends on what the first few steps find, that’s dynamic decomposition.</li>
+  <li><strong>Isolation is a feature, not a limitation</strong>: <code class="language-plaintext highlighter-rouge">review_file</code>’s system prompt explicitly tells it not to comment on other files. A per-file pass that tries to reason about the whole project defeats the purpose of splitting the work up in the first place.</li>
+  <li><strong>The integration pass needs everything, not a summary</strong>: <code class="language-plaintext highlighter-rouge">integrate_findings</code> receives every file’s findings verbatim. A cross-file inconsistency is easy to miss if one side of it got paraphrased away before the comparison happened.</li>
+  <li><strong>Dynamic decomposition is just the ordinary agentic loop</strong>: nothing about <code class="language-plaintext highlighter-rouge">run_dynamic_investigation</code> is new. Task 1.6 isn’t asking you to build a different mechanism — it’s asking you to recognize when the mechanism you already have is the right choice, and when it isn’t.</li>
+</ul>
+
+<h2 id="consequences">Consequences</h2>
+
+<ul>
+  <li><strong>Forcing an open-ended investigation into a fixed pipeline</strong> -&gt; either every file gets the same depth of attention whether it needs it or not, or someone has to guess in advance which files matter, before any evidence exists to base that guess on.</li>
+  <li><strong>Letting a predictable review run as an open-ended investigation</strong> -&gt; the model might decide one file doesn’t need a look, or spend disproportionate effort on one file while skimming another, since nothing guarantees uniform coverage.</li>
+  <li><strong>A per-file pass that isn’t told to stay isolated</strong> -&gt; it starts reasoning about files it hasn’t actually read yet, producing cross-file claims that are really just guesses dressed up as findings.</li>
+  <li><strong>An integration pass fed summaries instead of full findings</strong> -&gt; the one thing it exists to catch — inconsistency between files — is exactly what a summary is most likely to smooth over.</li>
+</ul>
+
+<p>The two patterns aren’t competitors. A production review pipeline can run prompt chaining for the parts of the job that are genuinely predictable, and drop into dynamic decomposition the moment a step’s next move actually depends on what it just found.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="AI" /><category term="Claude" /><summary type="html"><![CDATA[Prompt chaining versus dynamic decomposition - a fixed per-file review pipeline that avoids attention dilution, an integration pass that catches cross-file drift no single review can, an agentic loop that decides its own step count while exploring an unfamiliar codebase, and how the shape of the problem tells you which pattern fits.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/task-decomposition-strategies.svg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/task-decomposition-strategies.svg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Production Agent Architecture: Agent SDK Hooks (Part 5)</title><link href="https://www.en.dobrenteiistvan.hu/blog/agent-sdk-hooks.html" rel="alternate" type="text/html" title="Production Agent Architecture: Agent SDK Hooks (Part 5)" /><published>2026-08-04T00:00:00+00:00</published><updated>2026-08-04T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/agent-sdk-hooks</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/agent-sdk-hooks.html"><![CDATA[<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
+
+<h2 id="picking-up-where-part-4-left-off">Picking up where Part 4 left off</h2>
+
+<p>Part 4 built a prerequisite gate straight into <code class="language-plaintext highlighter-rouge">process_refund</code>’s own code, and closed with a promise: the Agent SDK has a dedicated mechanism for this same kind of check, called hooks, and they deserved their own part. This is that part.</p>
+
+<p>The objective for Task 1.5 asks about two things that sound different but solve the same underlying problem — a tool result or a tool call passing through untouched when it shouldn’t. The first is interception: stopping a tool call before it runs, the way Part 4’s gate stopped an unverified refund. The second is normalization: cleaning up a tool’s result after it runs, before the model ever reads it. Both are described as hooks — <code class="language-plaintext highlighter-rouge">PreToolUse</code> for the first, <code class="language-plaintext highlighter-rouge">PostToolUse</code> for the second — and both exist so that a rule doesn’t have to live inside the tool it applies to, or inside the model’s head.</p>
+
+<p>The example keeps the same three tools this agent actually uses on a given case — <code class="language-plaintext highlighter-rouge">lookup_order</code>, <code class="language-plaintext highlighter-rouge">process_refund</code>, <code class="language-plaintext highlighter-rouge">escalate_to_human</code> — but drops Part 4’s customer-verification step. That step is real and worth keeping in a production agent, but it’s a different lesson (a prerequisite gate, not a hook), and dragging it along here would only add a <code class="language-plaintext highlighter-rouge">customer_id</code> to thread through every function without teaching anything new about hooks. What’s left is small enough to hold in your head in one read: two tools that do real work, one that hands a case to a person, and two hooks watching the traffic between the model and all three.</p>
+
+<h2 id="two-hook-points-in-one-loop">Two hook points in one loop</h2>
+
+<p>Every part so far reused the same agentic loop, with small additions each time. This part’s addition is two lists of functions the loop consults on every tool call: <code class="language-plaintext highlighter-rouge">pre_tool_hooks</code>, checked before the real tool runs, and <code class="language-plaintext highlighter-rouge">post_tool_hooks</code>, checked after:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">calls</span><span class="p">:</span>
+    <span class="n">blocked</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">for</span> <span class="n">hook</span> <span class="ow">in</span> <span class="n">pre_tool_hooks</span><span class="p">:</span>
+        <span class="n">blocked</span> <span class="o">=</span> <span class="n">hook</span><span class="p">(</span><span class="n">block</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="n">block</span><span class="p">.</span><span class="nb">input</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">blocked</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">break</span>
+
+    <span class="k">if</span> <span class="n">blocked</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">blocked</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">tool_impls</span><span class="p">[</span><span class="n">block</span><span class="p">.</span><span class="n">name</span><span class="p">](</span><span class="o">**</span><span class="n">block</span><span class="p">.</span><span class="nb">input</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">hook</span> <span class="ow">in</span> <span class="n">post_tool_hooks</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">hook</span><span class="p">(</span><span class="n">block</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="n">block</span><span class="p">.</span><span class="nb">input</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>A pre-tool hook takes the tool’s name and its input, and returns either <code class="language-plaintext highlighter-rouge">None</code> — “no objection, proceed” — or a string that replaces the entire call. When that happens, <code class="language-plaintext highlighter-rouge">tool_impls[block.name]</code> never runs at all. A post-tool hook takes the name, the input, and whatever the tool actually returned, and hands back a (possibly rewritten) result. This is a hand-rolled stand-in for what the real Agent SDK calls <code class="language-plaintext highlighter-rouge">PreToolUse</code> and <code class="language-plaintext highlighter-rouge">PostToolUse</code>, small enough to read in one pass, but it draws the exact same line: interception happens before the call, normalization happens after it.</p>
+
+<p>You can find the full file on <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.5%20Agent%20SDK%20hooks/agent_sdk_hooks_minimal.py">GitHub</a>. A <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.5%20Agent%20SDK%20hooks/agent_sdk_hooks_minimal.php">PHP port</a> is available too, built the same way as the earlier parts.</p>
+
+<h2 id="blocking-a-call-the-tool-never-sees">Blocking a call the tool never sees</h2>
+
+<p>In this example, <code class="language-plaintext highlighter-rouge">process_refund</code> itself contains no policy logic at all — no threshold, no check of any kind. It trusts its inputs and does the one thing it’s for:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process_refund</span><span class="p">(</span><span class="n">order_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">amount</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">order_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ORDERS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s">"ERROR: order </span><span class="si">{</span><span class="n">order_id</span><span class="si">}</span><span class="s"> not found. retryable=false"</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s">"Refunded $</span><span class="si">{</span><span class="n">amount</span><span class="si">:</span><span class="p">.</span><span class="mi">2</span><span class="n">f</span><span class="si">}</span><span class="s"> for order </span><span class="si">{</span><span class="n">order_id</span><span class="si">}</span><span class="s">."</span>
+</code></pre></div></div>
+
+<p>Every bit of the $500 rule lives somewhere else entirely, in a hook that <code class="language-plaintext highlighter-rouge">process_refund</code> never calls and doesn’t know exists:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">REFUND_THRESHOLD</span> <span class="o">=</span> <span class="mf">500.00</span>
+
+<span class="k">def</span> <span class="nf">block_large_refunds</span><span class="p">(</span><span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">tool_input</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">tool_name</span> <span class="o">!=</span> <span class="s">"process_refund"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">None</span>
+    <span class="n">amount</span> <span class="o">=</span> <span class="n">tool_input</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"amount"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">amount</span> <span class="o">&lt;=</span> <span class="n">REFUND_THRESHOLD</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">None</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s">"BLOCKED by policy hook: a refund of $</span><span class="si">{</span><span class="n">amount</span><span class="si">:</span><span class="p">.</span><span class="mi">2</span><span class="n">f</span><span class="si">}</span><span class="s"> exceeds the "</span>
+        <span class="sa">f</span><span class="s">"$</span><span class="si">{</span><span class="n">REFUND_THRESHOLD</span><span class="si">:</span><span class="p">.</span><span class="mi">2</span><span class="n">f</span><span class="si">}</span><span class="s"> threshold this agent may approve on its "</span>
+        <span class="s">"own. Call escalate_to_human instead."</span>
+    <span class="p">)</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">block_large_refunds</code> reads <code class="language-plaintext highlighter-rouge">tool_name</code> and <code class="language-plaintext highlighter-rouge">tool_input</code> the same way every hook does — it has no special access to <code class="language-plaintext highlighter-rouge">process_refund</code>’s internals, because there’s nothing there to access. Compare that to Part 4’s gate, which lived inside <code class="language-plaintext highlighter-rouge">process_refund</code> itself: a check written that way only ever protects the one tool it’s written into, and changing the rule means editing that tool’s code. A hook sits one layer above every tool call instead, so raising the threshold to $750, or adding a second rule for a completely different tool, never touches <code class="language-plaintext highlighter-rouge">process_refund</code> at all.</p>
+
+<p><code class="language-plaintext highlighter-rouge">demo_hook_without_model()</code> proves this the same way Part 4’s gate demo did — by calling the hook directly, with no model and no loop involved:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">demo_hook_without_model</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="n">big</span> <span class="o">=</span> <span class="p">{</span><span class="s">"order_id"</span><span class="p">:</span> <span class="s">"A123"</span><span class="p">,</span> <span class="s">"amount"</span><span class="p">:</span> <span class="mf">900.00</span><span class="p">}</span>
+    <span class="n">small</span> <span class="o">=</span> <span class="p">{</span><span class="s">"order_id"</span><span class="p">:</span> <span class="s">"A123"</span><span class="p">,</span> <span class="s">"amount"</span><span class="p">:</span> <span class="mf">40.00</span><span class="p">}</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"large refund:"</span><span class="p">,</span> <span class="n">block_large_refunds</span><span class="p">(</span><span class="s">"process_refund"</span><span class="p">,</span> <span class="n">big</span><span class="p">))</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"small refund:"</span><span class="p">,</span> <span class="n">block_large_refunds</span><span class="p">(</span><span class="s">"process_refund"</span><span class="p">,</span> <span class="n">small</span><span class="p">))</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"different tool:"</span><span class="p">,</span> <span class="n">block_large_refunds</span><span class="p">(</span><span class="s">"lookup_order"</span><span class="p">,</span> <span class="n">big</span><span class="p">))</span>
+</code></pre></div></div>
+
+<p>The $900 request comes back blocked. The $40 request and the unrelated <code class="language-plaintext highlighter-rouge">lookup_order</code> call both come back <code class="language-plaintext highlighter-rouge">None</code> — the hook only ever has an opinion about <code class="language-plaintext highlighter-rouge">process_refund</code> calls above its threshold, and stays out of the way for everything else.</p>
+
+<p>For comparison, the example project also keeps the prompt-only version of this exact rule around, the same way Part 4 did:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PROMPT_ONLY_REFUND_POLICY</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s">"Never approve a refund over $500 on your own — always escalate "</span>
+    <span class="s">"those to a human agent instead of calling process_refund."</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>This sentence would genuinely help, most of the time — the same as Part 4’s prompt-only version helped, most of the time. It has the same ceiling, too: nothing forces the model to reread it before every single refund decision, and a threshold that protects money deserves better than “most of the time.”</p>
+
+<h2 id="one-shape-out-of-two-backends">One shape out of two backends</h2>
+
+<p>The second hook solves a different problem. <code class="language-plaintext highlighter-rouge">lookup_order</code> in this example pulls from two backends that describe an order differently — a legacy system using a numeric status code and a Unix timestamp, and a modern one using a status word and an ISO 8601 date:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ORDERS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">"A123"</span><span class="p">:</span> <span class="p">{</span><span class="s">"status_code"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s">"shipped_at_unix"</span><span class="p">:</span> <span class="mi">1750000000</span><span class="p">,</span> <span class="p">...},</span>   <span class="c1"># legacy backend
+</span>    <span class="s">"B456"</span><span class="p">:</span> <span class="p">{</span><span class="s">"status"</span><span class="p">:</span> <span class="s">"delivered"</span><span class="p">,</span> <span class="s">"shipped_at_iso"</span><span class="p">:</span> <span class="s">"2025-06-20T10:00:00Z"</span><span class="p">,</span> <span class="p">...},</span>  <span class="c1"># modern backend
+</span><span class="p">}</span>
+</code></pre></div></div>
+
+<p>Nothing about which backend answers is under the model’s control, and nothing about it should have to be. Without a hook, the model would have to learn both shapes, recognize which one it’s looking at on every single order, and hope it never confuses <code class="language-plaintext highlighter-rouge">2</code> for “delivered” with <code class="language-plaintext highlighter-rouge">2</code> meaning something else in a different response. A <code class="language-plaintext highlighter-rouge">PostToolUse</code> hook removes that entirely by converting both shapes into one, before either ever reaches the model:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">normalize_order_result</span><span class="p">(</span><span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">tool_input</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">raw_result</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">tool_name</span> <span class="o">!=</span> <span class="s">"lookup_order"</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">raw_result</span><span class="p">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">"{"</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">raw_result</span>
+
+    <span class="n">order</span> <span class="o">=</span> <span class="n">json</span><span class="p">.</span><span class="n">loads</span><span class="p">(</span><span class="n">raw_result</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s">"status_code"</span> <span class="ow">in</span> <span class="n">order</span><span class="p">:</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">STATUS_CODE_MAP</span><span class="p">[</span><span class="n">order</span><span class="p">[</span><span class="s">"status_code"</span><span class="p">]]</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">order</span><span class="p">[</span><span class="s">"shipped_at_unix"</span><span class="p">],</span> <span class="n">tz</span><span class="o">=</span><span class="n">timezone</span><span class="p">.</span><span class="n">utc</span><span class="p">).</span><span class="n">date</span><span class="p">().</span><span class="n">isoformat</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">order</span><span class="p">[</span><span class="s">"status"</span><span class="p">]</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="n">order</span><span class="p">[</span><span class="s">"shipped_at_iso"</span><span class="p">][:</span><span class="mi">10</span><span class="p">]</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s">"status=</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s"> date=</span><span class="si">{</span><span class="n">date</span><span class="si">}</span><span class="s"> amount=$</span><span class="si">{</span><span class="n">order</span><span class="p">[</span><span class="s">'amount'</span><span class="p">]</span><span class="si">:</span><span class="p">.</span><span class="mi">2</span><span class="n">f</span><span class="si">}</span><span class="s">"</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">demo_normalization()</code> runs both raw results through this hook and prints them side by side. Both come out as <code class="language-plaintext highlighter-rouge">status=delivered date=... amount=$...</code> — same three fields, same format, regardless of which backend produced the original response. The error strings <code class="language-plaintext highlighter-rouge">lookup_order</code> returns for a missing order pass straight through untouched, since they don’t start with <code class="language-plaintext highlighter-rouge">{</code>; a hook that tries to normalize everything indiscriminately usually ends up breaking the one shape it wasn’t expecting.</p>
+
+<h2 id="critical-design-decisions">Critical design decisions</h2>
+
+<ul>
+  <li><strong>Interception happens before the tool runs, normalization after</strong>: a <code class="language-plaintext highlighter-rouge">PreToolUse</code> hook can stop a call outright; a <code class="language-plaintext highlighter-rouge">PostToolUse</code> hook only ever gets to reshape a result the tool already produced.</li>
+  <li><strong>A hook doesn’t require touching the tool it governs</strong>: <code class="language-plaintext highlighter-rouge">block_large_refunds</code> never edits <code class="language-plaintext highlighter-rouge">process_refund</code>, and <code class="language-plaintext highlighter-rouge">process_refund</code> never mentions the threshold. That decoupling is the whole reason to reach for a hook instead of another in-function check.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">None</code> means “no objection,” not “nothing happened”</strong>: a pre-tool hook has to actively return a replacement to block anything. Anything it doesn’t recognize passes straight through.</li>
+  <li><strong>Test a hook the same way you test a gate</strong>: <code class="language-plaintext highlighter-rouge">demo_hook_without_model()</code> calls <code class="language-plaintext highlighter-rouge">block_large_refunds</code> directly, no model or loop required, for the same reason Part 4 tested its gate that way — the guarantee shouldn’t depend on the model cooperating.</li>
+  <li><strong>Normalize only what you recognize</strong>: <code class="language-plaintext highlighter-rouge">normalize_order_result</code> checks the shape of what it received before touching it, so error strings and anything unexpected pass through unchanged instead of crashing on a shape the hook wasn’t written for.</li>
+</ul>
+
+<h2 id="consequences">Consequences</h2>
+
+<ul>
+  <li><strong>A business rule written inside one tool</strong> -&gt; protecting a second tool with the same rule means copying the check, and every copy can drift out of sync with the others. A hook that inspects <code class="language-plaintext highlighter-rouge">tool_name</code> applies the same rule everywhere it’s registered, from one place.</li>
+  <li><strong>A prompt-only threshold on a financial operation</strong> -&gt; the same non-zero failure rate Part 4 described, just applied to a dollar amount instead of an identity check.</li>
+  <li><strong>No normalization hook, two backends, one model</strong> -&gt; the model has to hold both formats in its head and guess correctly every time, and a status code that means one thing in one response can silently mean something else if a third backend joins later with its own numbering.</li>
+  <li><strong>A hook that transforms without checking the shape first</strong> -&gt; the moment an error string or an unexpected format reaches it, it either crashes or silently mangles something it was never meant to touch.</li>
+</ul>
+
+<p>Interception and normalization are really the same idea pointed in two directions: a layer between the model and a tool that gets to see every call and every result before anyone else does, and can act on what it sees without either side needing to know it’s there.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="AI" /><category term="Claude" /><summary type="html"><![CDATA[Why a policy rule belongs in a hook instead of inside the tool it governs - PreToolUse interception that blocks a call before it runs, PostToolUse normalization that reshapes a tool's result before the model reads it, testing a hook without a model in the loop, and why returning None means no objection rather than nothing happened.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/agent-sdk-hooks.svg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/agent-sdk-hooks.svg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Production Agent Architecture: Multi Step Workflows (Part 4)</title><link href="https://www.en.dobrenteiistvan.hu/blog/multi-step-workflows.html" rel="alternate" type="text/html" title="Production Agent Architecture: Multi Step Workflows (Part 4)" /><published>2026-08-03T00:00:00+00:00</published><updated>2026-08-03T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/multi-step-workflows</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/multi-step-workflows.html"><![CDATA[<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
+
+<h2 id="back-to-customer-support-on-purpose">Back to customer support, on purpose</h2>
+
+<p>Part 3 moved to a research pipeline because that objective’s own examples were about research subagents. This part moves back to customer support, for the same reason: the official objective for Task 1.4 is written around a refund flow. It talks about verifying a customer before a refund, about escalating a case a bot can’t finish alone, and about giving a human agent a full picture instead of a raw chat log to dig through. The exam guide’s own sample question describes the exact bug this part fixes: an agent that skips customer verification in 12% of cases and occasionally refunds the wrong account.</p>
+
+<p>So the example this time is a single support agent again, close to the one Parts 1 and 2 started with — but with a question none of the earlier parts asked: what happens between two tool calls that absolutely must happen in the right order, and what happens when the agent can’t finish the job by itself?</p>
+
+<h2 id="programmatic-enforcement-vs-asking-nicely">Programmatic enforcement vs. asking nicely</h2>
+
+<p>Every part so far had a system prompt telling the model what to do. That’s prompt-based guidance, and it works well for most decisions — which subagent fits a question, how many sources to check. It stops being good enough the moment a step protects something with a financial consequence, like refunding money without knowing who the customer actually is.</p>
+
+<p>The reason isn’t that the model is careless. A prompt instruction is probabilistic by nature. “Always verify the customer first” competes with everything else in the prompt and the conversation for the model’s attention on any given turn, and on some fraction of turns, it loses. A 12% skip rate isn’t a broken model — it’s what a probabilistic instruction protecting a critical step looks like at scale.</p>
+
+<p>The fix is to stop asking and start checking. In the example project, <code class="language-plaintext highlighter-rouge">process_refund</code> doesn’t trust that <code class="language-plaintext highlighter-rouge">get_customer</code> ran earlier in the conversation. It checks a <code class="language-plaintext highlighter-rouge">verified_customers</code> set directly, at the top of the function, before doing anything else:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process_refund</span><span class="p">(</span><span class="n">customer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">order_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">amount</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">customer_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">verified_customers</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="s">"ERROR: prerequisite not met. process_refund requires a "</span>
+            <span class="s">"verified customer_id from get_customer first. retryable=false"</span>
+        <span class="p">)</span>
+    <span class="p">...</span>
+</code></pre></div></div>
+
+<p>This is what “programmatic prerequisite” means: a gate in the code path, not a line in a prompt. It doesn’t matter whether the model forgot to call <code class="language-plaintext highlighter-rouge">get_customer</code>, whether a bug somewhere skipped it, or whether nobody went through the model at all. The example project shows that last case directly — <code class="language-plaintext highlighter-rouge">demo_prerequisite_gate()</code> calls <code class="language-plaintext highlighter-rouge">process_refund</code> straight from Python, with no agentic loop in between, and the gate still blocks it:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">demo_prerequisite_gate</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">process_refund</span><span class="p">(</span><span class="n">customer_id</span><span class="o">=</span><span class="s">"cust_001"</span><span class="p">,</span> <span class="n">order_id</span><span class="o">=</span><span class="s">"A123"</span><span class="p">,</span> <span class="n">amount</span><span class="o">=</span><span class="mf">40.00</span><span class="p">))</span>
+    <span class="n">get_customer</span><span class="p">(</span><span class="s">"alice@example.com"</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">process_refund</span><span class="p">(</span><span class="n">customer_id</span><span class="o">=</span><span class="s">"cust_001"</span><span class="p">,</span> <span class="n">order_id</span><span class="o">=</span><span class="s">"A123"</span><span class="p">,</span> <span class="n">amount</span><span class="o">=</span><span class="mf">40.00</span><span class="p">))</span>
+</code></pre></div></div>
+
+<p>The first call fails. The second one succeeds, once <code class="language-plaintext highlighter-rouge">get_customer</code> has actually run in between. No system prompt was involved in either outcome — the check gives the same result for any code calling these two functions in the wrong order, model or no model.</p>
+
+<p>For comparison, the example project also keeps a prompt-only version of the same rule around:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PROMPT_ONLY_SYSTEM</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s">"You are a customer support agent. Always call get_customer before "</span>
+    <span class="s">"calling process_refund. Never skip this step."</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>That sentence isn’t wrong, and it isn’t useless — a clear system prompt still helps the model reach for the right tool in the right order most of the time. It’s just not the thing actually doing the protecting. If this prompt were the only defense, <code class="language-plaintext highlighter-rouge">demo_prerequisite_gate()</code>’s direct call would have gone straight through to <code class="language-plaintext highlighter-rouge">process_refund</code> with nothing standing in front of it, because a prompt only has influence over a model — and that direct call never involved a model at all.</p>
+
+<p>A plain <code class="language-plaintext highlighter-rouge">if</code> statement inside <code class="language-plaintext highlighter-rouge">process_refund</code> is one way to build a gate like this. It’s not the only one. The Agent SDK has a dedicated mechanism for the same job — hooks that sit between the model and a tool call and can block it before it ever runs, without the tool’s own code having to know anything about verification. A hand-written check and an SDK hook are both “programmatic enforcement” in the sense that matters here: code decides, not a sentence in a prompt. The difference is where that code lives and how it’s wired in, and that’s specific enough to deserve its own part — Part 5 covers Agent SDK hooks directly.</p>
+
+<p>You can find the full file on <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.4%20Multi-step%20workflows/multistep_workflow_minimal.py">GitHub</a>. A <a href="https://github.com/distvan/claude-exam-objectives/blob/master/1.4%20Multi-step%20workflows/multistep_workflow_minimal.php">PHP port</a> is available too, built the same way as the earlier parts.</p>
+
+<h2 id="one-message-more-than-one-problem">One message, more than one problem</h2>
+
+<p>Real support messages rarely stick to one topic. “Check on order A123, and also refund order B456” is two separate concerns in one sentence, and a naive agent can end up half-answering one of them, or losing track of the second one while it’s busy explaining the first.</p>
+
+<p>The example project doesn’t need any special machinery for this. The same agentic loop from Part 1 already handles it, because nothing in that loop forces tool calls to happen one at a time. A single response from the model can carry more than one <code class="language-plaintext highlighter-rouge">tool_use</code> block, and the loop already collects every one of them before it calls the model again:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">calls</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">response</span><span class="p">.</span><span class="n">content</span> <span class="k">if</span> <span class="n">b</span><span class="p">.</span><span class="nb">type</span> <span class="o">==</span> <span class="s">"tool_use"</span><span class="p">]</span>
+<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">calls</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="sa">f</span><span class="s">"  [</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s">] </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">calls</span><span class="p">)</span><span class="si">}</span><span class="s"> tool calls in this turn (parallel)"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Given a two-order message, the agent verifies the customer once, then looks up both orders. They don’t depend on each other, so nothing stops them from landing in the same turn. Only after both results are back does it write one combined reply covering both concerns. The decomposition itself is the model’s job, not something the code has to spell out — a system prompt that expects multiple concerns and expects one final answer is enough, and the existing loop takes care of the rest.</p>
+
+<h2 id="a-handoff-a-human-can-actually-use">A handoff a human can actually use</h2>
+
+<p>Not every case ends with a tool result. Sometimes the agent hits a wall — an order that isn’t in the system, a request outside its authority — and the right move is to stop and hand the case to a person. What matters at that point is what the handoff actually contains.</p>
+
+<p>A human picking up an escalated case usually doesn’t get the conversation transcript. They get whatever fields the escalation tool was called with. If those fields are vague — “customer has a problem, please help” — the human has to start the investigation from zero, which defeats the entire point of escalating a case the bot already partly worked through.</p>
+
+<p><code class="language-plaintext highlighter-rouge">escalate_to_human</code> is written so that a vague handoff isn’t even possible, using the same tool schema every other tool in the project already uses — this time with required fields:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="s">"escalate_to_human"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="p">...</span>
+    <span class="s">"input_schema"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s">"type"</span><span class="p">:</span> <span class="s">"object"</span><span class="p">,</span>
+        <span class="s">"properties"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s">"customer_id"</span><span class="p">:</span> <span class="p">{</span><span class="s">"type"</span><span class="p">:</span> <span class="s">"string"</span><span class="p">},</span>
+            <span class="s">"root_cause"</span><span class="p">:</span> <span class="p">{</span><span class="s">"type"</span><span class="p">:</span> <span class="s">"string"</span><span class="p">},</span>
+            <span class="s">"recommended_action"</span><span class="p">:</span> <span class="p">{</span><span class="s">"type"</span><span class="p">:</span> <span class="s">"string"</span><span class="p">},</span>
+            <span class="s">"refund_amount"</span><span class="p">:</span> <span class="p">{</span><span class="s">"type"</span><span class="p">:</span> <span class="s">"number"</span><span class="p">},</span>
+        <span class="p">},</span>
+        <span class="s">"required"</span><span class="p">:</span> <span class="p">[</span><span class="s">"customer_id"</span><span class="p">,</span> <span class="s">"root_cause"</span><span class="p">,</span> <span class="s">"recommended_action"</span><span class="p">],</span>
+    <span class="p">},</span>
+<span class="p">},</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">customer_id</code>, <code class="language-plaintext highlighter-rouge">root_cause</code>, and <code class="language-plaintext highlighter-rouge">recommended_action</code> are required — the model can’t call this tool without supplying them, because a tool call missing a required field isn’t a valid call in the first place. <code class="language-plaintext highlighter-rouge">refund_amount</code> stays optional, since plenty of escalations don’t have a dollar figure attached yet — the “order isn’t even in the system” case in the demo is exactly that. When the tool runs, it prints exactly what a human needs to start working: who the customer is, why this needs a person, and what the agent already thinks should happen next.</p>
+
+<h2 id="critical-design-decisions">Critical design decisions</h2>
+
+<ul>
+  <li><strong>Enforcement lives in the tool, not the prompt</strong>: <code class="language-plaintext highlighter-rouge">process_refund</code> checks its own prerequisite before doing anything else. A system prompt can guide; only code sitting in the execution path can guarantee.</li>
+  <li><strong>Test the gate without the model</strong>: calling a protected tool directly, the way <code class="language-plaintext highlighter-rouge">demo_prerequisite_gate()</code> does, is the fastest way to prove a gate holds no matter what any model decides to do.</li>
+  <li><strong>Decomposition doesn’t need new code</strong>: parallel tool calls already exist in the loop from Part 1. A multi-concern message is handled by the same mechanism Part 3 used for parallel subagent spawning — just aimed at ordinary tools this time.</li>
+  <li><strong>Required fields make a handoff complete by construction</strong>: putting <code class="language-plaintext highlighter-rouge">customer_id</code>, <code class="language-plaintext highlighter-rouge">root_cause</code>, and <code class="language-plaintext highlighter-rouge">recommended_action</code> in the schema’s <code class="language-plaintext highlighter-rouge">required</code> list means an incomplete handoff isn’t a call the model can make — not just a call it’s told not to make.</li>
+  <li><strong>Optional fields for what isn’t always known yet</strong>: <code class="language-plaintext highlighter-rouge">refund_amount</code> stays optional because forcing a number into every escalation would push the model to guess one it doesn’t actually have.</li>
+</ul>
+
+<h2 id="consequences">Consequences</h2>
+
+<ul>
+  <li><strong>A prompt-only rule protecting a financial step</strong> -&gt; a non-zero fraction of conversations skip it, close to the 12% figure in the exam guide’s own sample question. The instruction isn’t wrong; it just isn’t a guarantee.</li>
+  <li><strong>No gate at all</strong> -&gt; the failure only shows up in production logs, after the wrong account has already been refunded, instead of failing loudly the moment it happens.</li>
+  <li><strong>Sequential-only concern handling</strong> -&gt; a two-part request pays for two round trips it didn’t need, the same latency cost Part 3 covered for subagents, just showing up here in an ordinary support conversation.</li>
+  <li><strong>Optional or missing fields on an escalation tool</strong> -&gt; a human agent picks up a case with half the picture, and ends up re-doing the investigation the bot already did, which is the entire cost escalation was supposed to save.</li>
+</ul>
+
+<p>Enforcement and handoff aren’t really new ideas by themselves. They’re the same lesson from Part 1 — that a loop has to check something for certain instead of hoping the model got it right — applied to two new places: a gate between two tool calls, and a schema on the last one before a person takes over.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="AI" /><category term="Claude" /><summary type="html"><![CDATA[Why a prompt instruction alone can't guarantee a critical step happens in order - a programmatic prerequisite gate in process_refund, testing that gate without a model in the loop, handling multi-concern messages with parallel tool calls, and required fields that make an escalation to a human complete by construction.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/multi-step-workflows.svg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/articles/multi-step-workflows.svg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Production Agent Architecture: Configure Subagent Invocation (Part 3)</title><link href="https://www.en.dobrenteiistvan.hu/blog/configure-subagent-invocation.html" rel="alternate" type="text/html" title="Production Agent Architecture: Configure Subagent Invocation (Part 3)" /><published>2026-08-02T00:00:00+00:00</published><updated>2026-08-02T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/configure-subagent-invocation</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/configure-subagent-invocation.html"><![CDATA[<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
 
 <h2 id="a-different-example-on-purpose">A different example, on purpose</h2>
 
@@ -482,64 +945,4 @@ I draw a lot of inspiration from my teammates—I’m truly grateful to them all
 
 <p>Running with István made the experience even more meaningful. It wasn’t just a run — it became a journey through time, enriched by the personal connection and his deep knowledge of the area.</p>
 
-<p>Many thanks to István for the guidance. It was an unforgettable experience and one of the highlights of my running journey so far.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[As I had planned the year before, I returned in April 2015 to run again around the historic battlefield near Isaszeg. But this time, something unexpected and truly special happened.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/isaszegi_csata_futas_2015.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/isaszegi_csata_futas_2015.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Isaszeg running 2014</title><link href="https://www.en.dobrenteiistvan.hu/blog/isaszeg-running-2014.html" rel="alternate" type="text/html" title="Isaszeg running 2014" /><published>2014-04-06T00:00:00+00:00</published><updated>2014-04-06T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/isaszeg-running-2014</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/isaszeg-running-2014.html"><![CDATA[<p>In 2013, I had a spontaneous idea: to go for a relaxing run in the nearby forest. I didn’t have a plan — I just wanted to connect with nature and clear my mind.</p>
-
-<p>Following my feet and instincts, I eventually found myself in a small town called Isaszeg. I ran a bit further around the outskirts and stumbled upon a memorial stone at the edge of the city, in a place called Szentgyörgypuszta. I later learned that this was a historic battlefield, where soldiers once fought for Hungary’s independence.</p>
-
-<p>When I got home, I looked it up and found this animated video about the battle — it really moved me. You can watch it <a href="https://www.youtube.com/watch?v=d3p1Eddh2r0">here</a></p>
-
-<p>Inspired by the experience, I decided to return a year later to honor the memory of the battle with an “anniversary run” on April 6th — the day of the original event.</p>
-
-<p>So, on April 6th, 2014, at 9 a.m., I began my commemorative run. The route took me along what’s known as the “tank road,” named after the nearby military facility where vehicles are repaired and tested. On the right side, there’s an arboretum, and a path that leads into the forest. Accompanied by the peaceful sound of a church bell in the distance, I eventually reached the center of Isaszeg.</p>
-
-<p>I continued running through a street symbolically named Csata (Battle Street). At the end of the street, I climbed a hill where a monument stands — a powerful tribute to the events of 1849. From the top, you can look out over the area and, with a bit of imagination, place yourself in the middle of that historic battle.</p>
-
-<p>Each year, the town hosts a battle reenactment and a memorial ceremony to honor those who fought there. It adds even more depth to the visit — whether you’re running, walking, or just exploring.</p>
-
-<p>That day, I ran for 3.5 hours and covered 24 kilometers. It was a meaningful, powerful experience, and I plan to return next year to run again — this time during the battle reenactment event.</p>
-
-<p><img src="/assets/images/futas/isaszegi_erdo.jpg" width="250" height="250" />
-<img src="/assets/images/futas/isaszegi_erdo_2.jpg" width="250" height="250" />
-<img src="/assets/images/futas/isaszegi_emlektabla.jpg" width="250" height="250" /></p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[In 2013, I had a spontaneous idea: to go for a relaxing run in the nearby forest. I didn’t have a plan — I just wanted to connect with nature and clear my mind.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/isaszegi_erdo_3.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/isaszegi_erdo_3.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Vivicitta charity running</title><link href="https://www.en.dobrenteiistvan.hu/blog/vivicitta-charity-running.html" rel="alternate" type="text/html" title="Vivicitta charity running" /><published>2014-04-05T00:00:00+00:00</published><updated>2014-04-05T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/vivicitta-charity-running</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/vivicitta-charity-running.html"><![CDATA[<p>Taking part in the 29th Telekom Vivicittá Budapest Half Marathon was a unique and unforgettable experience for me. This time, I wanted my run to be about more than just personal achievement — I wanted it to help others.</p>
-
-<p>That’s why I chose to run for a cause close to my heart: the Gézengúz Foundation, which supports the development of children with injuries to the nervous system.</p>
-
-<p>Thanks to everyone who <a href="http://jougyekert.hu/hu/jo_ugyek_tamogatoinak/kovetek_es_vallalasaik/egy_mindenkirt_mindenki_egyrt.html">supported me</a> — through kind words, encouragement, or donations. Your help means a lot.</p>
-
-<p>Learn more about the amazing work of the Gézengúz Foundation <a href="https://gezenguz.hu/gezenguz-foundation/">here</a></p>
-
-<p>Because in a marathon — just like in life — we go further when we run for each other. 🏃‍♂️❤️</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[Taking part in the 29th Telekom Vivicittá Budapest Half Marathon was a unique and unforgettable experience for me. This time, I wanted my run to be about more than just personal achievement — I wanted it to help others.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/vivicitta_jotekony.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/vivicitta_jotekony.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Ultrabalaton 2013</title><link href="https://www.en.dobrenteiistvan.hu/blog/ultrabalaton-2013.html" rel="alternate" type="text/html" title="Ultrabalaton 2013" /><published>2013-07-17T00:00:00+00:00</published><updated>2013-07-17T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/ultrabalaton-2013</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/ultrabalaton-2013.html"><![CDATA[<p>The team had been forming since December 2012, and finally, the big day arrived. On May 31st, 2013, we traveled to the race starting point in three vehicles.</p>
-
-<p>The weather was quite unpredictable at that time. On the day of the race, it rained, and I got soaked — but shortly afterward, the sun came out and shone warmly. A good sign to start with!</p>
-
-<p>After checking into our apartments, we kicked off the pasta party and finalized a well-detailed plan for the next day. One person would run while another cycled beside them, then they would switch at designated exchange points.</p>
-
-<p>A big thanks to the Why Not! agency for providing us with a brand-new bicycle and specially designed t-shirts for the event.</p>
-
-<p>We ran through day and night, in sunshine and thunderstorms, switching at 31 points along the way. Our total time was 20 hours and 16 minutes.</p>
-
-<p>It was both a great challenge and an amazing display of teamwork. Running 212 kilometers without rest is almost impossible for an “ordinary” person — but with a strong team, anything is possible.</p>
-
-<p>It was a life-changing experience, and I’m truly grateful to everyone who was part of the team and gave their very best.</p>
-
-<p>Team members:</p>
-
-<ul>
-  <li>Evi Greif</li>
-  <li>Feri Marcze</li>
-  <li>Botond Lantos</li>
-  <li>Zsuzsi Patakfalvi</li>
-  <li>Sandor Patakfalvi</li>
-  <li>Ildi Glegyak</li>
-  <li>Kati Nagy</li>
-  <li>Zoli Kovacs</li>
-  <li>Gyozo Tibold</li>
-  <li>Istvan Dobrentei</li>
-</ul>
-
-<p><img src="/assets/images/futas/ultrabalaton_2.jpg" width="450" /></p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[The team had been forming since December 2012, and finally, the big day arrived. On May 31st, 2013, we traveled to the race starting point in three vehicles.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/ultrabalaton_1.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/ultrabalaton_1.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">My first marathon running</title><link href="https://www.en.dobrenteiistvan.hu/blog/my-first-marathon-running.html" rel="alternate" type="text/html" title="My first marathon running" /><published>2012-10-23T00:00:00+00:00</published><updated>2012-10-23T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/my-first-marathon-running</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/my-first-marathon-running.html"><![CDATA[<p>I ran the first marathon of my life on October 7th, 2012, in Budapest. My goal was simple: to finish it — and I did it.
-After the first 10,000 meters, I started to feel that something was changing. That’s when I realized: I was really part of a marathon race.
-The last 5 kilometers were tough. I hit what runners call “the wall.” I believe you can avoid hitting it if you prepare well enough and don’t start too fast at the beginning of the race. There were pace runners at the event, and I joined one of them. I’m truly thankful for their support — it helped me a lot.
-One of the most unforgettable moments was when I found myself running alongside a Greek runner, between a French and an Italian. It was incredible, and I enjoyed it so much. I will always remember those moments. And whenever I face a hardship in life, I ask myself: What could possibly stop me — if I’ve already run a marathon?</p>
-
-<p>“A marathon is not a battle between nations, races, or beliefs. It is a celebration of humanity - thousands of hearts beating together in pursuit of a personal victory. On the course, we are not divided by gender, color, or creed, but united by the road and the will to endure.”</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[I ran the first marathon of my life on October 7th, 2012, in Budapest. My goal was simple: to finish it — and I did it. After the first 10,000 meters, I started to feel that something was changing. That’s when I realized: I was really part of a marathon race. The last 5 kilometers were tough. I hit what runners call “the wall.” I believe you can avoid hitting it if you prepare well enough and don’t start too fast at the beginning of the race. There were pace runners at the event, and I joined one of them. I’m truly thankful for their support — it helped me a lot. One of the most unforgettable moments was when I found myself running alongside a Greek runner, between a French and an Italian. It was incredible, and I enjoyed it so much. I will always remember those moments. And whenever I face a hardship in life, I ask myself: What could possibly stop me — if I’ve already run a marathon?]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/spar_maraton.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/spar_maraton.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry></feed>
+<p>Many thanks to István for the guidance. It was an unforgettable experience and one of the highlights of my running journey so far.</p>]]></content><author><name>Istvan Dobrentei</name></author><category term="Hobbies" /><category term="Running" /><summary type="html"><![CDATA[As I had planned the year before, I returned in April 2015 to run again around the historic battlefield near Isaszeg. But this time, something unexpected and truly special happened.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/isaszegi_csata_futas_2015.jpg" /><media:content medium="image" url="https://www.en.dobrenteiistvan.hu/assets/images/futas/isaszegi_csata_futas_2015.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry></feed>

@@ -2,6 +2,46 @@
 
 {
 "category": "AI",
+"title": "Production Agent Architecture: Manage Session State (Part 7)",
+"description": "Lessons Learned While Preparing for the Claude Architect CertificationThe las...",
+"url": "/blog/manage-session-state.html",
+"image": "/assets/images/articles/manage-session-state.svg",
+"author": "Istvan Dobrentei"
+}
+,
+
+{
+"category": "AI",
+"title": "Production Agent Architecture: Task Decomposition Strategies (Part 6)",
+"description": "Lessons Learned While Preparing for the Claude Architect CertificationTwo sha...",
+"url": "/blog/task-decomposition-strategies.html",
+"image": "/assets/images/articles/task-decomposition-strategies.svg",
+"author": "Istvan Dobrentei"
+}
+,
+
+{
+"category": "AI",
+"title": "Production Agent Architecture: Agent SDK Hooks (Part 5)",
+"description": "Lessons Learned While Preparing for the Claude Architect CertificationPicking...",
+"url": "/blog/agent-sdk-hooks.html",
+"image": "/assets/images/articles/agent-sdk-hooks.svg",
+"author": "Istvan Dobrentei"
+}
+,
+
+{
+"category": "AI",
+"title": "Production Agent Architecture: Multi Step Workflows (Part 4)",
+"description": "Lessons Learned While Preparing for the Claude Architect CertificationBack to...",
+"url": "/blog/multi-step-workflows.html",
+"image": "/assets/images/articles/multi-step-workflows.svg",
+"author": "Istvan Dobrentei"
+}
+,
+
+{
+"category": "AI",
 "title": "Production Agent Architecture: Configure Subagent Invocation (Part 3)",
 "description": "Lessons Learned While Preparing for the Claude Architect CertificationA diffe...",
 "url": "/blog/configure-subagent-invocation.html",
