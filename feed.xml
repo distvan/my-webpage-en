@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.2">Jekyll</generator><link href="https://www.en.dobrenteiistvan.hu/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.en.dobrenteiistvan.hu/" rel="alternate" type="text/html" /><updated>2026-08-07T17:15:50+00:00</updated><id>https://www.en.dobrenteiistvan.hu/feed.xml</id><title type="html">Döbrentei István</title><subtitle>Döbrentei István oldala</subtitle><entry><title type="html">Production Agent Architecture: Manage Session State (Part 7)</title><link href="https://www.en.dobrenteiistvan.hu/blog/manage-session-state.html" rel="alternate" type="text/html" title="Production Agent Architecture: Manage Session State (Part 7)" /><published>2026-08-06T00:00:00+00:00</published><updated>2026-08-06T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/manage-session-state</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/manage-session-state.html"><![CDATA[<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.2">Jekyll</generator><link href="https://www.en.dobrenteiistvan.hu/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.en.dobrenteiistvan.hu/" rel="alternate" type="text/html" /><updated>2026-08-08T09:11:54+00:00</updated><id>https://www.en.dobrenteiistvan.hu/feed.xml</id><title type="html">Döbrentei István</title><subtitle>Döbrentei István oldala</subtitle><entry><title type="html">Production Agent Architecture: Manage Session State (Part 7)</title><link href="https://www.en.dobrenteiistvan.hu/blog/manage-session-state.html" rel="alternate" type="text/html" title="Production Agent Architecture: Manage Session State (Part 7)" /><published>2026-08-06T00:00:00+00:00</published><updated>2026-08-06T00:00:00+00:00</updated><id>https://www.en.dobrenteiistvan.hu/blog/manage-session-state</id><content type="html" xml:base="https://www.en.dobrenteiistvan.hu/blog/manage-session-state.html"><![CDATA[<p><em>Lessons Learned While Preparing for the Claude Architect Certification</em></p>
 
 <h2 id="the-last-piece-of-domain-1">The last piece of Domain 1</h2>
 
@@ -361,7 +361,7 @@ that only one thread at a time can execute the critical section...
 
 <p>Part 3 moved to a research pipeline because that objective’s own examples were about research subagents. This part moves back to customer support, for the same reason: the official objective for Task 1.4 is written around a refund flow. It talks about verifying a customer before a refund, about escalating a case a bot can’t finish alone, and about giving a human agent a full picture instead of a raw chat log to dig through. The exam guide’s own sample question describes the exact bug this part fixes: an agent that skips customer verification in 12% of cases and occasionally refunds the wrong account.</p>
 
-<p>So the example this time is a single support agent again, close to the one Parts 1 and 2 started with — but with a question none of the earlier parts asked: what happens between two tool calls that absolutely must happen in the right order, and what happens when the agent can’t finish the job by itself?</p>
+<p>So the example this time is a single support agent again, close to the one Part 2 started with — but with a question none of the earlier parts asked: what happens between two tool calls that absolutely must happen in the right order, and what happens when the agent can’t finish the job by itself?</p>
 
 <h2 id="programmatic-enforcement-vs-asking-nicely">Programmatic enforcement vs. asking nicely</h2>
 
@@ -465,7 +465,7 @@ that only one thread at a time can execute the critical section...
 
 <h2 id="a-different-example-on-purpose">A different example, on purpose</h2>
 
-<p>Parts 1 and 2 stayed with one example the whole time: a customer support agent, split into order-status, pricing, and returns subagents. This part switches to a different one — a small research pipeline, with a coordinator that spawns a web-search subagent, a document-analysis subagent, and a synthesis subagent.</p>
+<p>Part 2 stayed with one example the whole time: a customer support agent, split into order-status, pricing, and returns subagents. This part switches to a different one — a small research pipeline, with a coordinator that spawns a web-search subagent, a document-analysis subagent, and a synthesis subagent.</p>
 
 <p>That’s not a random change. The official objective for this part is written in exactly those terms: passing web search results and document analysis outputs into a synthesis subagent’s prompt. It’s closer to a research pipeline than to a support ticket, so the example follows the objective instead of forcing the old one to fit.</p>
 
@@ -475,7 +475,7 @@ that only one thread at a time can execute the critical section...
 
 <p>A coordinator spawns a subagent through the <code class="language-plaintext highlighter-rouge">Task</code> tool. For that to work at all, <code class="language-plaintext highlighter-rouge">Task</code> has to be in the coordinator’s own list of allowed tools — without it, the coordinator can still reason about delegating, it just has no way to actually do it. Nothing crashes. The coordinator simply never spawns anyone, and from the outside that can look like a model that “doesn’t want” to delegate, when the real problem is one missing entry in its own tool list.</p>
 
-<p>Each subagent it spawns is described by an <code class="language-plaintext highlighter-rouge">AgentDefinition</code>: a name, a description, a system prompt, and the tools it’s allowed to use. This is the same object from Part 2’s design decisions, written out as actual config instead of a design question.</p>
+<p>Each subagent it spawns is described by an <code class="language-plaintext highlighter-rouge">AgentDefinition</code>: a name, a description, a system prompt, and the tools it’s allowed to use. Part 2 already had all four of these — a system prompt, a tool list, and tool implementations passed straight into <code class="language-plaintext highlighter-rouge">run_agentic_loop()</code>, one hardcoded per subagent function. <code class="language-plaintext highlighter-rouge">AgentDefinition</code> just bundles what was scattered across separate function arguments into one config object per subagent.</p>
 
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">@</span><span class="n">dataclass</span>
 <span class="k">class</span> <span class="nc">AgentDefinition</span><span class="p">:</span>
@@ -711,9 +711,9 @@ loop:
 
 <h2 id="from-one-agent-to-many">From one agent to many</h2>
 
-<p>In Part 1, our customer support agent grew a second tool without much effort. Once <code class="language-plaintext highlighter-rouge">get_order_status</code> existed, adding <code class="language-plaintext highlighter-rouge">get_return_policy</code> was just one more entry in the tools list. The loop already knew how to call any tool and use the result. Nothing about the control flow had to change.</p>
+<p>In Part 1, a single-tool agent looked up the weather for a city. Adding a second tool there would have taken almost no effort — just one more entry in the tools list. The loop already knows how to call any tool and use the result. Nothing about the control flow has to change.</p>
 
-<p>Now the product team wants more. Users also want to know if they could still get a better price on what they bought. That means a new tool, <code class="language-plaintext highlighter-rouge">get_price_history</code>. It also means a new policy to explain, plus new edge cases. For example: what if the order is too old for price data to exist?</p>
+<p>This part switches the example to customer support, because Task 1.2’s decomposition problem doesn’t really show up until more than one plausible tool sits in the same list. Say the product team wants an agent that can look up an order’s status (<code class="language-plaintext highlighter-rouge">get_order_status</code>), and now also wants it to tell customers whether they could still get a better price on what they bought. That means a new tool, <code class="language-plaintext highlighter-rouge">get_price_history</code>. It also means a new policy to explain, plus new edge cases. For example: what if the order is too old for price data to exist?</p>
 
 <p>Nothing stops you from adding this as a third tool on the same agent. But a few problems start to show up:</p>
 
@@ -740,6 +740,8 @@ loop:
             return response.text
 
         if response.stop_reason == "tool_use":
+            # each "tool" here really means: delegate to a subagent —
+            # a single response can ask for more than one subagent at once
             tool_results = []
             for tool_call in response.tool_calls:
                 result = run_agentic_loop(tool_call.subtask)
@@ -754,7 +756,7 @@ loop:
 
 <p>This looks a lot like Part 1’s pseudocode. The only real change is what a “tool” does.</p>
 
-<p>In Part 1, a tool call reached into a fake backend and returned a small dict. Here, each tool call reaches into <code class="language-plaintext highlighter-rouge">run_agentic_loop()</code> — the same function from Part 1. It returns whatever that inner loop produces once it reaches its own <code class="language-plaintext highlighter-rouge">end_turn</code>.</p>
+<p>In Part 1, a tool call reached into a fake backend and returned a short string. Here, each tool call reaches into <code class="language-plaintext highlighter-rouge">run_agentic_loop()</code> — the same function from Part 1. It returns whatever that inner loop produces once it reaches its own <code class="language-plaintext highlighter-rouge">end_turn</code>.</p>
 
 <p>The coordinator doesn’t know, and doesn’t need to know, that its “tool” is actually a full conversation with the model. From the coordinator’s side, it’s just a function: send a question, get an answer back.</p>
 
